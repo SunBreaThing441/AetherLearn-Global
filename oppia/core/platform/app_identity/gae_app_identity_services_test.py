@@ -1,0 +1,120 @@
+# coding: utf-8
+#
+# Copyright 2014 The Oppia Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Tests for core.platform.app_identity.gae_app_identity_services."""
+
+from __future__ import annotations
+
+import logging
+import os
+from unittest import mock
+
+from core.constants import constants
+from core.platform.app_identity import gae_app_identity_services
+from core.tests import test_utils
+
+from google.cloud import resourcemanager_v3
+
+
+class GaeAppIdentityServicesTests(test_utils.GenericTestBase):
+    def test_get_application_id(self) -> None:
+        def mock_get(key: str, _: str) -> str:
+            assert key == 'GOOGLE_CLOUD_PROJECT'
+            return 'some_id'
+
+        with self.swap(os.environ, 'get', mock_get):
+            self.assertEqual(
+                gae_app_identity_services.get_application_id(), 'some_id'
+            )
+
+    def test_get_default_application_id(self) -> None:
+        def mock_get(key: str, default: str) -> str:
+            assert key == 'GOOGLE_CLOUD_PROJECT'
+            return default
+
+        with self.swap(os.environ, 'get', mock_get):
+            self.assertEqual(
+                gae_app_identity_services.get_application_id(), 'dev-project-id'
+            )
+
+    def test_get_application_id_throws_error(self) -> None:
+        def mock_get(key: str, _: str) -> str:
+            assert key == 'GOOGLE_CLOUD_PROJECT'
+            return ''
+
+        with self.swap(os.environ, 'get', mock_get):
+            with self.assertRaisesRegex(
+                ValueError, 'Value "" for application id is invalid.'
+            ):
+                gae_app_identity_services.get_application_id()
+
+    def test_get_default_gcs_bucket_name(self) -> None:
+        def mock_get(key: str, _: str) -> str:
+            assert key == 'GOOGLE_CLOUD_PROJECT'
+            return 'some_id'
+
+        with self.swap(os.environ, 'get', mock_get):
+            self.assertEqual(
+                gae_app_identity_services.get_gcs_resource_bucket_name(),
+                'some_id-resources',
+            )
+
+    @mock.patch.object(logging, 'warning')
+    def test_get_compute_engine_default_service_account_email_from_dev_mode(
+        self, logging_warning_mock: mock.Mock
+    ) -> None:
+        with self.swap(constants, 'DEV_MODE', True):
+            self.assertIsNone(
+                gae_app_identity_services.get_compute_engine_default_service_account_email()
+            )
+            logging_warning_mock.assert_not_called()
+
+    @mock.patch.object(logging, 'warning')
+    def test_get_compute_engine_default_service_account_email_from_prod_mode(
+        self, logging_warning_mock: mock.Mock
+    ) -> None:
+        mock_client = mock.Mock()
+        mock_client.get_project.return_value = resourcemanager_v3.Project(
+            name='projects/12345'
+        )
+        with (
+            self.swap(constants, 'DEV_MODE', False),
+            self.swap_to_always_return(
+                resourcemanager_v3, 'ProjectsClient', mock_client
+            ),
+        ):
+            self.assertEqual(
+                gae_app_identity_services.get_compute_engine_default_service_account_email(),
+                '12345-compute@developer.gserviceaccount.com',
+            )
+            logging_warning_mock.assert_not_called()
+
+    @mock.patch.object(logging, 'warning')
+    def test_get_compute_engine_default_service_account_email_from_prod_mode_with_request_error(
+        self, logging_warning_mock: mock.Mock
+    ) -> None:
+        mock_client = mock.Mock()
+        mock_client.get_project.side_effect = Exception('uh-oh')
+        with (
+            self.swap(constants, 'DEV_MODE', False),
+            self.swap_to_always_return(
+                resourcemanager_v3, 'ProjectsClient', mock_client
+            ),
+        ):
+            self.assertIsNone(
+                gae_app_identity_services.get_compute_engine_default_service_account_email()
+            )
+            logging_warning_mock.assert_called_once()

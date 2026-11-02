@@ -1,0 +1,49 @@
+<div class="oppia-classrooms-page-container">
+  <div class="breadcrumbs-container">
+    <div class="classrooms-breadcrumbs">
+      <div class="desktop-breadcrumbs">
+        <a href="/">{{ 'I18N_TOPNAV_HOME' | translate }}</a>
+        <i class="fa fa-angle-right" *ngIf="!isLanguageRTL()"></i>
+        <i class="fa fa-angle-left" *ngIf="isLanguageRTL()"></i>
+        <span>{{ 'I18N_CLASSROOM_TOP_NAV_CLASSROOMS_TEXT' | translate }}</span>
+      </div>
+      <div class="mobile-breadcrumbs">
+        <i class="fa fa-angle-left" *ngIf="!isLanguageRTL()"></i>
+        <i class="fa fa-angle-right" *ngIf="isLanguageRTL()"></i>
+        <a href="/">{{ 'I18N_BACK_TO_HOME_TEXT' | translate }}</a>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="(DEV_MODE && classroomSummaries.length === 0)"
+       class="classroom-admin-banner"
+  >
+    <span>To create classrooms, visit the <a href="/classroom-admin">classroom admin</a> page.</span>
+  </div>
+
+  <div class="classrooms-page-content-container">
+    <div class="classrooms-page-content">
+      <h1 class="classrooms-heading e2e-test-classroom-heading">Oppia Classrooms</h1>
+      <div class="classrooms-main-content">
+        <img alt="Illustration image for classrooms"
+             class="classrooms-illustration-image"
+             src="/assets/images/classroom/classrooms-page-illustration.svg">
+        <div class="description-container">
+          <p class="classrooms-description">
+            {{ 'I18N_MULTIPLE_CLASSROOMS_PAGE_DESCRIPTION' | translate }}
+          </p>
+        </div>
+        <div class="classroom-tile-container">
+          <ng-container *ngFor="let classroomSummary of classroomSummaries">
+            <ng-container *ngIf="classroomSummary.is_published">
+              <oppia-classroom-summary-tile [classroomSummary]="classroomSummary" (click)="registerClassroomCardClickEvent(classroomSummary.name)"></oppia-classroom-summary-tile>
+            </ng-container>
+          </ng-container>
+          <ng-container *ngIf="hasPublicClassrooms">
+            <oppia-classroom-summary-tile [classroomSummary]="privateClassroomSummary"></oppia-classroom-summary-tile>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

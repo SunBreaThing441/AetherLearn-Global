@@ -1,0 +1,124 @@
+<form #hybridForm="ngForm">
+  <!-- Choices-based editor -->
+  <schema-based-choices-editor *ngIf="schemaChoices"
+                               [(ngModel)]="localValue"
+                               [schema]="schema"
+                               [choices]="$any(schemaChoices)"
+                               [disabled]="disabled"
+                               (ngModelChange)="localValue = $event"
+                               (blur)="onInputBlur()"
+                               (focus)="onInputFocus()"
+                               name="choicesEditor"
+                               class="e2e-test-schema-based-editor">
+  </schema-based-choices-editor>
+
+  <!-- Boolean editor -->
+  <schema-based-bool-editor *ngIf="schema.type === 'bool' && !schemaChoices"
+                            [(ngModel)]="localValue"
+                            [disabled]="disabled"
+                            [labelForFocusTarget]="labelForFocusTarget"
+                            (ngModelChange)="localValue = $event"
+                            (blur)="onInputBlur()"
+                            (focus)="onInputFocus()"
+                            name="boolEditor"
+                            class="e2e-test-schema-based-editor">
+  </schema-based-bool-editor>
+
+  <!-- Integer editor -->
+  <schema-based-int-editor *ngIf="schema.type === 'int' && !schemaChoices"
+                           [(ngModel)]="localValue"
+                           [disabled]="disabled"
+                           [required]="!notRequired"
+                           [validators]="$any(schemaValidators)"
+                           [labelForFocusTarget]="labelForFocusTarget"
+                           (ngModelChange)="localValue = $event"
+                           (inputBlur)="onInputBlur()"
+                           (inputFocus)="onInputFocus()"
+                           name="intEditor"
+                           class="e2e-test-schema-based-editor">
+  </schema-based-int-editor>
+
+  <!-- Float editor -->
+  <schema-based-float-editor *ngIf="schema.type === 'float' && !schemaChoices"
+                             [(ngModel)]="localValue"
+                             [disabled]="disabled"
+                             [validators]="$any(schemaValidators)"
+                             [uiConfig]="$any(schemaUiConfig)"
+                             [labelForFocusTarget]="labelForFocusTarget"
+                             (ngModelChange)="localValue = $event"
+                             (inputBlur)="onInputBlur()"
+                             (inputFocus)="onInputFocus()"
+                             name="floatEditor"
+                             class="e2e-test-schema-based-editor">
+  </schema-based-float-editor>
+
+  <!-- Unicode/String editor -->
+  <schema-based-unicode-editor *ngIf="schema.type === 'unicode' && !schemaChoices"
+                               [(ngModel)]="localValue"
+                               [disabled]="disabled"
+                               [validators]="$any(schemaValidators)"
+                               [uiConfig]="$any(schemaUiConfig)"
+                               [labelForFocusTarget]="labelForFocusTarget"
+                               (ngModelChange)="localValue = $event"
+                               (inputBlur)="onInputBlur()"
+                               (inputFocus)="onInputFocus()"
+                               name="unicodeEditor"
+                               class="e2e-test-schema-based-editor">
+  </schema-based-unicode-editor>
+
+  <!-- HTML editor -->
+  <schema-based-html-editor *ngIf="schema.type === 'html' && !schemaChoices"
+                            [(ngModel)]="localValue"
+                            [disabled]="disabled"
+                            [labelForFocusTarget]="labelForFocusTarget"
+                            [uiConfig]="$any(schemaUiConfig)"
+                            (ngModelChange)="localValue = $event"
+                            (blur)="onInputBlur()"
+                            (focus)="onInputFocus()"
+                            name="htmlEditor"
+                            class="e2e-test-schema-based-editor">
+  </schema-based-html-editor>
+
+  <!-- List editor -->
+  <schema-based-list-editor *ngIf="schema.type === 'list' && !schemaChoices"
+                            [(ngModel)]="localValue"
+                            [localValue]="$any(localValue)"
+                            [disabled]="disabled"
+                            [itemSchema]="$any(schemaItems)"
+                            [len]="schemaLen"
+                            [uiConfig]="$any(schemaUiConfig)"
+                            [validators]="$any(schemaValidators)"
+                            [labelForFocusTarget]="labelForFocusTarget"
+                            (ngModelChange)="localValue = $event"
+                            (blur)="onInputBlur()"
+                            (focus)="onInputFocus()"
+                            name="listEditor"
+                            class="e2e-test-schema-based-editor">
+  </schema-based-list-editor>
+
+  <!-- Dictionary editor -->
+  <schema-based-dict-editor *ngIf="schema.type === 'dict' && !schemaChoices"
+                            [(ngModel)]="localValue"
+                            [disabled]="disabled"
+                            [propertySchemas]="schemaProperties"
+                            [labelForFocusTarget]="labelForFocusTarget"
+                            (ngModelChange)="localValue = $event"
+                            (blur)="onInputBlur()"
+                            (focus)="onInputFocus()"
+                            name="dictEditor"
+                            class="e2e-test-schema-based-editor">
+  </schema-based-dict-editor>
+
+  <!-- Custom editor -->
+  <schema-based-custom-editor *ngIf="schema.type === 'custom' && !schemaChoices"
+                              [(ngModel)]="localValue"
+                              [schema]="schema"
+                              [disabled]="disabled"
+                              (ngModelChange)="localValue = $event"
+                              (blur)="onInputBlur()"
+                              (focus)="onInputFocus()"
+                              name="customEditor"
+                              class="e2e-test-schema-based-editor">
+  </schema-based-custom-editor>
+
+</form>

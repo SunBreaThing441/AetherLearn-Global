@@ -1,0 +1,278 @@
+<background-banner></background-banner>
+<div class="oppia-topics-and-skills-dashboard position-relative e2e-test-topics-and-skills-dashboard">
+  <div>
+    <h2 class="dashboard-title"
+        *ngIf="(totalTopicSummaries.length === 0 && untriagedSkillSummaries.length === 0)">
+      {{ 'I18N_DASHBOARD_TOPICS_AND_SKILLS_DASHBOARD' | translate }}
+    </h2>
+    <div class="create-buttons" *ngIf="!(topicSummaries.length === 0 && untriagedSkillSummaries.length === 0)">
+      <button (click)="createTopic()" *ngIf="userCanCreateTopic"
+              class="btn oppia-navbar-button oppia-transition-200">
+        <span class="oppia-navbar-tab-content">Create Topic</span>
+      </button>
+      <button (click)="createSkill()" *ngIf="userCanCreateSkill"
+              class="btn oppia-navbar-button oppia-transition-200">
+        <span class="oppia-navbar-tab-content">Create Skill</span>
+      </button>
+    </div>
+  </div>
+  <div class="create-button-mobile">
+    <div *ngIf="(activeTab === TAB_NAME_TOPICS) && totalTopicSummaries.length">
+      <i class="fa fa-plus-circle e2e-test-create-topic-mobile-button" aria-hidden="true" (click)="createTopic()" *ngIf="userCanCreateTopic"></i>
+    </div>
+    <div *ngIf="activeTab === TAB_NAME_SKILLS">
+      <i class="fa fa-plus-circle e2e-test-mobile-create-skill-button-secondary" aria-hidden="true" (click)="createSkill()" *ngIf="userCanCreateSkill"></i>
+    </div>
+  </div>
+  <div *ngIf="totalTopicSummaries.length > 0 || untriagedSkillSummaries.length > 0">
+    <div class="dashboard-content">
+      <div class="dashboard-content-primary">
+        <div>
+          <ul class="dashboard-tabs e2e-test-topics-tab">
+            <li [ngClass]="{'dashboard-tabs-active': activeTab === TAB_NAME_TOPICS}">
+              <a class="dashboard-tabs-text e2e-test-topics-tab"
+                 (click)="setActiveTab(TAB_NAME_TOPICS)">
+                Topics
+              </a>
+            </li>
+            <li [ngClass]="{'dashboard-tabs-active': activeTab === TAB_NAME_SKILLS}">
+              <a class="dashboard-tabs-text e2e-test-skills-tab"
+                 (click)="setActiveTab(TAB_NAME_SKILLS)">
+                Skills
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div class="filter-mobile-box">
+          <button class="btn btn-secondary e2e-test-mobile-toggle-filter" (click)="toggleFilterBox()">
+            <span *ngIf="activeTab === TAB_NAME_TOPICS">TOPIC FILTERS</span>
+            <span *ngIf="activeTab === TAB_NAME_SKILLS">SKILL FILTERS</span>
+          </button>
+        </div>
+        <div class="dashboard-list">
+          <div class="dashboard-list-header" *ngIf="topicSummaries.length > 0 || skillSummaries.length > 0">
+            <div class="dashboard-list-header-count" *ngIf="activeTab === TAB_NAME_TOPICS">
+              <span>Displaying {{ pageNumber * itemsPerPage + 1 }} - {{ getUpperLimitValueForPagination() }} of {{ currentCount }}</span>
+            </div>
+            <div class="dashboard-list-header-count" *ngIf="activeTab === TAB_NAME_SKILLS">
+              <span>Displaying {{ pageNumber * itemsPerPage + 1 }} - {{ getUpperLimitValueForPagination() }} of {{ getTotalCountValueForSkills() }}</span>
+            </div>
+            <div class="dashboard-list-pagination">
+              <div>
+                <span>Items Per Page: </span>
+                <select [(ngModel)]="itemsPerPage"
+                        (change)="refreshPagination()"
+                        aria-label="Items Per Page"
+                        class="e2e-test-select-items-per-page-dropdown">
+                  <option *ngFor="let choice of itemsPerPageChoice" [value]="choice">{{ choice }}</option>
+                </select>
+              </div>
+              <div *ngIf="activeTab === TAB_NAME_TOPICS">
+                <i class="fa fa-angle-left topic-pagination-arrow" (click)="changePageByOne(MOVE_TO_PREV_PAGE)"></i>
+                <span class="dashboard-list-pagination-value"
+                      *ngFor=" let n of generateNumbersTillRange(currentCount/itemsPerPage); index as idx" (click)="goToPageNumber(idx)">
+                  <span *ngIf="pageNumber === idx" class="dashboard-list-pagination-active">
+                    <span>{{ idx + 1 }}</span>
+                  </span>
+                  <span *ngIf="pageNumber !== idx">{{ idx + 1 }}</span>
+                </span>
+                <i class="fa fa-angle-right topic-pagination-arrow e2e-test-topics-next-page-button"
+                   (click)="changePageByOne(MOVE_TO_NEXT_PAGE)">
+                </i>
+              </div>
+              <div *ngIf="activeTab === TAB_NAME_SKILLS">
+                <i class="fa fa-angle-left topic-pagination-arrow" (click)="navigateSkillPage(MOVE_TO_PREV_PAGE)"></i>
+                <span class="dashboard-list-pagination-value">
+                  <span class="dashboard-list-pagination-active">{{ skillPageNumber + 1 }}</span>
+                </span>
+                <i class="fa fa-angle-right topic-pagination-arrow e2e-test-skills-next-page-button" (click)="navigateSkillPage(MOVE_TO_NEXT_PAGE)"></i>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="activeTab === TAB_NAME_TOPICS">
+            <oppia-topics-list [topicSummaries]="displayedTopicSummaries"
+                               [pageNumber]="pageNumber"
+                               [itemsPerPage]="itemsPerPage"
+                               *ngIf="topicSummaries.length > 0"
+                               [userCanDeleteTopic]="userCanDeleteTopic">
+            </oppia-topics-list>
+            <p class="intro-card-message" *ngIf="!topicSummaries.length">
+              No topics to display.
+            </p>
+          </div>
+          <div *ngIf="activeTab === TAB_NAME_SKILLS">
+            <oppia-skills-list [skillSummaries]="displayedSkillSummaries"
+                               *ngIf="displayedSkillSummaries.length > 0"
+                               [pageNumber]="pageNumber"
+                               [itemsPerPage]="itemsPerPage"
+                               [editableTopicSummaries]="editableTopicSummaries"
+                               [mergeableSkillSummaries]="mergeableSkillSummaries"
+                               [untriagedSkillSummaries]="untriagedSkillSummaries"
+                               [userCanCreateSkill]="userCanCreateSkill"
+                               [userCanDeleteSkill]="userCanDeleteSkill"
+                               [skillsCategorizedByTopics]="skillsCategorizedByTopics">
+            </oppia-skills-list>
+            <p class="intro-card-message e2e-test-no-skills-present-message" *ngIf="!displayedSkillSummaries.length">
+              No skills to display.
+            </p>
+          </div>
+          <div class="pagination-mobile">
+            <div *ngIf="activeTab === TAB_NAME_TOPICS">
+              <i class="fa fa-angle-left topic-pagination-arrow" (click)="changePageByOne(MOVE_TO_PREV_PAGE)"></i>
+              <span class="dashboard-list-pagination-value"
+                    *ngFor="let n of generateNumbersTillRange(currentCount/itemsPerPage); index as idx" (click)="goToPageNumber(idx)">
+                <span *ngIf="pageNumber === idx" class="dashboard-list-pagination-active">{{ idx + 1 }}</span>
+                <span *ngIf="pageNumber !== idx">{{ idx + 1 }}</span>
+              </span>
+              <i class="fa fa-angle-right topic-pagination-arrow e2e-test-mobile-topics-next-page-button" (click)="changePageByOne(MOVE_TO_NEXT_PAGE)"></i>
+            </div>
+            <div *ngIf="activeTab === TAB_NAME_SKILLS">
+              <i class="fa fa-angle-left topic-pagination-arrow" (click)="navigateSkillPage(MOVE_TO_PREV_PAGE)"></i>
+              <span class="dashboard-list-pagination-active">{{ skillPageNumber + 1 }}</span>
+              <i class="fa fa-angle-right topic-pagination-arrow e2e-test-mobile-skills-next-page-button" (click)="navigateSkillPage(MOVE_TO_NEXT_PAGE)"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dashboard-content-secondary">
+        <div class="topic-skill-count">
+          <div class="topic-count">
+            <span class="topic-count-value">{{ totalTopicSummaries.length }}</span>
+            <span class="topic-count-text">Topics</span>
+          </div>
+          <div class="skill-count">
+            <span class="skill-count-value">{{ totalSkillCount }}</span>
+            <span class="skill-count-text">Skills</span>
+          </div>
+          <div class="create-topic-skill">
+            <div tabindex="0" *ngIf="activeTab === TAB_NAME_TOPICS && userCanCreateTopic"
+                 (click)="createTopic()"
+                 (keydown.enter)="createTopic()"
+                 class="e2e-test-create-topic-button create-topic-button oppia-autofocus"
+                 oppiaFocusOn="createTopicBtn">
+              <i class="fa fa-plus-circle"></i>
+              <span>Create New Topic</span>
+            </div>
+            <div *ngIf="activeTab === TAB_NAME_SKILLS && userCanCreateSkill"  (click)="createSkill()" class="e2e-test-create-skill-button-circle create-skill-button
+            oppia-autofocus" oppiaFocusOn="createSkillBtn">
+              <i class="fa fa-plus-circle"></i>
+              <span>Create New Skill</span>
+            </div>
+          </div>
+        </div>
+        <div class="topic-skill-filter" *ngIf="filterBoxIsShown">
+          <div class="topic-skill-filter-content">
+            <div class="topic-skill-filter-header">
+              <span class="topic-skill-filter-heading">Filter</span>
+              <span class="topic-skill-filter-reset e2e-test-topic-filter-reset" (click)="resetFilters()">Reset</span>
+              <i class="fa fa-times dashboard-cross-icon" (click)="toggleFilterBox()"></i>
+            </div>
+            <div class="topic-skill-filter-header-mobile">
+              <div class="topic-skill-filter-heading">
+                <span>Filter</span>
+              </div>
+              <div class="topic-skill-filter-action-box">
+                <i class="fa fa-times dashboard-cross-icon e2e-test-mobile-filter-close" (click)="toggleFilterBox()"></i>
+                <div class="topic-skill-filter-action-reset">
+                  <span (click)="resetFilters()" class="e2e-test-mobile-topic-filter-reset">Reset</span>
+                </div>
+              </div>
+            </div>
+            <div class="topic-skill-filter-row">
+              <div class="topic-skill-filter-key">
+                <span>Status</span>
+              </div>
+              <div class="topic-skill-filter-value">
+                <div *ngIf="activeTab === TAB_NAME_TOPICS">
+                  <oppia-filtered-choices-field class="e2e-test-select-topic-status-dropdown"
+                                                [choices]="statusOptions"
+                                                placeholder="Status Options"
+                                                searchLabel="Search"
+                                                [(selection)]="filterObject.status"
+                                                (selectionChange)="applyFilters()">
+                  </oppia-filtered-choices-field>
+                </div>
+                <div *ngIf="activeTab === TAB_NAME_SKILLS">
+                  <oppia-filtered-choices-field class="e2e-test-select-skill-status-dropdown"
+                                                [choices]="skillStatusOptions"
+                                                placeholder="Status Options"
+                                                searchLabel="Search"
+                                                [(selection)]="filterObject.status"
+                                                (selectionChange)="applyFilters()">
+                  </oppia-filtered-choices-field>
+                </div>
+              </div>
+            </div>
+            <div class="topic-skill-filter-row" *ngIf="activeTab === TAB_NAME_TOPICS">
+              <div class="topic-skill-filter-key">
+                <span>Classroom</span>
+              </div>
+              <div class="topic-skill-filter-value">
+                <div>
+                  <oppia-filtered-choices-field class="e2e-test-select-classroom-dropdown"
+                                                [choices]="classrooms"
+                                                placeholder="Classrooms"
+                                                searchLabel="Search"
+                                                [(selection)]="filterObject.classroom"
+                                                (selectionChange)="applyFilters()">
+                  </oppia-filtered-choices-field>
+                </div>
+              </div>
+            </div>
+            <div class="topic-skill-filter-row">
+              <div class="topic-skill-filter-key">
+                <span>Sort</span>
+              </div>
+              <div class="topic-skill-filter-value">
+                <div>
+                  <oppia-filtered-choices-field class="e2e-test-select-sort-dropdown"
+                                                [choices]="sortOptions"
+                                                placeholder="Sort Options"
+                                                [isSearchable]="false"
+                                                searchLabel="Search"
+                                                [(selection)]="filterObject.sort"
+                                                (selectionChange)="applyFilters()">
+                  </oppia-filtered-choices-field>
+                </div>
+              </div>
+            </div>
+            <div class="topic-skill-filter-row">
+              <div class="topic-skill-filter-key">
+                <span>Keywords</span>
+              </div>
+              <div class="topic-skill-filter-value">
+                <div>
+                  <oppia-multi-selection-field class="e2e-test-select-keyword-dropdown"
+                                               label="Keywords"
+                                               [(selections)]="filterObject.keywords"
+                                               placeholder="Multiple allowed"
+                                               (selectionsChange)="applyFilters()">
+                  </oppia-multi-selection-field>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-8 intro-card-wrapper" *ngIf="(totalTopicSummaries.length === 0 && untriagedSkillSummaries.length === 0)">
+    <blockquote class="intro-card">
+      <p class="intro-card-message">
+        No topics or skills have been created yet.
+      </p>
+      <button class="btn oppia-dashboard-intro-button oppia-transition-200 oppia-create-button-text  oppia-create-topic-btn e2e-test-create-topic-button"
+              (click)="createTopic()"
+              *ngIf="userCanCreateTopic">
+        Create Topic
+      </button>
+      <button class="btn oppia-dashboard-intro-button oppia-transition-200 oppia-create-button-text e2e-test-create-skill-button"
+              (click)="createSkill()"
+              *ngIf="userCanCreateSkill">
+        Create Skill
+      </button>
+    </blockquote>
+  </div>
+</div>

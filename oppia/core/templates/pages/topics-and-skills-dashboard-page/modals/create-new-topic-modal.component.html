@@ -1,0 +1,83 @@
+<div class="modal-header create-new-topic-modal-header">
+  <h3>
+    New Topic
+  </h3>
+  <i class="fa fa-times modal-close-button" (click)="cancel()"></i>
+</div>
+<form (submit)="save()">
+  <div class="modal-body create-new-topic-form">
+    <div class="create-new-topic-input-field">
+      <div><span class="create-new-topic-input-label">Name*</span></div>
+      <input class="e2e-test-new-topic-name-field required"
+             [(ngModel)]="newlyCreatedTopic.name"
+             [ngModelOptions]="{standalone: true}"
+             [maxlength]="MAX_CHARS_IN_TOPIC_NAME"
+             (change)="onTopicNameChange()" autofocus>
+      <div class="oppia-input-box-subtitle">
+        <em>
+          Topic name should be at most {{ MAX_CHARS_IN_TOPIC_NAME }} characters.
+        </em>
+      </div>
+      <div *ngIf="topicNameExists" class="oppia-input-box-subtitle text-danger">
+        <em>
+          A topic with this name already exists.
+        </em>
+      </div>
+    </div>
+    <div class="e2e-test-new-topic-url-fragment-field">
+      <url-fragment-editor-component label="Topic URL Fragment"
+                                     placeholder="Enter url fragment for the topic."
+                                     maxLength="{{MAX_CHARS_IN_TOPIC_URL_FRAGMENT}}"
+                                     fragmentType="topic"
+                                     [generatedUrlPrefix]="generatedUrlPrefix"
+                                     [fragmentIsDuplicate]="topicUrlFragmentExists"
+                                     [disabled]="false"
+                                     [(urlFragment)]="newlyCreatedTopic.urlFragment"
+                                     (urlFragmentChange)="onUrlFragmentChange($event)">
+      </url-fragment-editor-component>
+    </div>
+    <div class="create-new-topic-input-field">
+      <div><span class="create-new-topic-input-label">Web Title Fragment for Web*</span></div>
+      <div>
+        <input class="e2e-test-new-page-title-fragm-field required"
+               [(ngModel)]="newlyCreatedTopic.pageTitleFragment"
+               [maxlength]="maxWebTitleFrag"
+               [ngModelOptions]="{standalone: true}">
+      </div>
+      <span class="oppia-input-box-subtitle">
+        <em>
+          Enter the middle component of the page title. For example, if you enter "Add, Subtract, Multiply and Divide" it will show up in the browser tab as "Learn {{ newlyCreatedTopic.name }} | Add, Subtract, Multiply and Divide | Oppia".
+          It should be at least {{ minWebTitleFrag }} and at most {{ maxWebTitleFrag }} characters.
+        </em>
+      </span>
+    </div>
+    <div class="create-new-topic-input-field">
+      <div><span class="create-new-topic-input-label">Description*</span></div>
+      <textarea class="e2e-test-new-topic-description-field required"
+                rows="4" cols="50" placeholder="Enter description"
+                [maxlength]="MAX_CHARS_IN_TOPIC_DESCRIPTION"
+                [(ngModel)]="newlyCreatedTopic.description"
+                [ngModelOptions]="{standalone: true}">
+      </textarea>
+      <div class="oppia-input-box-subtitle">
+        <em>
+          Topic description should be at most {{ MAX_CHARS_IN_TOPIC_DESCRIPTION }} characters.
+        </em>
+      </div>
+    </div>
+    <div class="create-new-topic-input-field">
+      <label class="create-new-topic-input-label">Topic Thumbnail*</label>
+      <oppia-image-uploader
+        [imageUploaderParameters]="imageUploaderParameters"
+        (imageSave)="onImageSave($event)">
+      </oppia-image-uploader>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="cancel()" type="button">Cancel</button>
+    <button class="btn btn-success e2e-test-confirm-topic-creation-button" type="submit" [disabled]="!isValid()">
+      <span>Create Topic</span>
+    </button>
+  </div>
+</form>

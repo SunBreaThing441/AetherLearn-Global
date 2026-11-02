@@ -1,0 +1,56 @@
+<div class="story-editor">
+  <div class="navbar-helper">
+    <div class="navbar-tabs">
+      <div class="navbar-text">
+        {{ getNavbarText() }}
+      </div>
+      <div class="navbar-icons">
+        <li [ngClass]="{'navbar-tab-active': isMainEditorTabSelected(), 'dropdown': getTotalWarningsCount()}"
+            [attr.dropdown]="getTotalWarningsCount()"
+            class="nav-item icon nav-list-item"
+            (click)="navigateToStoryEditor()">
+          <a ngbTooltip="Main Editor" placement="bottom" class="nav-link navbar-tab">
+            <i class="fas fa-pen navbar-tab-icon" [ngClass]="{'navbar-tab-active-icon': isMainEditorTabSelected()}"></i>
+          </a>
+          <div [hidden]="!getTotalWarningsCount()"
+               class="oppia-editor-warnings-indicator oppia-editor-warnings-error-color"
+               (mouseover)="isWarningsAreShown(true)" (mouseleave)="isWarningsAreShown(false)">
+            <span class="oppia-editor-warnings-count e2e-test-warning-indicator">
+              {{ getTotalWarningsCount() }}
+            </span>
+            <ul class="dropdown-menu oppia-editor-warnings-box story-editor-warning-box" *ngIf="warningsAreShown">
+              <span class="oppia-editor-warnings-header">Warnings</span>
+              <li class="oppia-editor-warnings-text e2e-test-warnings-text"
+                  *ngFor="let issue of validationIssues.concat(explorationValidationIssues);trackBy: $index">
+                <hr class="oppia-editor-warnings-separator">
+                {{ issue }}
+              </li>
+              <li class="oppia-editor-warnings-text e2e-test-warnings-text"
+                  *ngFor="let issue of prepublishValidationIssues;trackBy: $index">
+                <hr class="oppia-editor-warnings-separator">
+                {{ issue }}
+              </li>
+            </ul>
+          </div>
+        </li>
+
+        <li *ngIf="!(getActiveTab() === 'chapter_editor')" [ngClass]="{'navbar-tab-active': getActiveTab() === 'story_preview'}" class="nav-item icon nav-list-item" (click)="navigateToStoryPreviewTab()">
+          <a class="nav-link navbar-tab" ngbTooltip="Preview" aria-label="Preview" placement="bottom">
+            <i class="fas fa-play navbar-tab-icon" [ngClass]="{'navbar-tab-active-icon': getActiveTab() === 'story_preview'}"></i>
+          </a>
+        </li>
+      </div>
+    </div>
+  </div>
+  <div *ngIf="story" class="story-editor-parent">
+    <div *ngIf="getActiveTab() === 'story_editor'">
+      <oppia-story-editor></oppia-story-editor>
+    </div>
+    <div *ngIf="getActiveTab() === 'chapter_editor'">
+      <oppia-chapter-editor-tab></oppia-chapter-editor-tab>
+    </div>
+    <div *ngIf="getActiveTab() === 'story_preview'">
+      <oppia-story-preview-tab></oppia-story-preview-tab>
+    </div>
+  </div>
+</div>

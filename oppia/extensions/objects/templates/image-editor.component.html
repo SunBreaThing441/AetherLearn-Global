@@ -1,0 +1,113 @@
+<div class="filepath-editor">
+  <div class="filepath-editor-main-container">
+    <div *ngIf="isImageUploaded()"
+         class="filepath-editor-img-toolbar"
+         [attr.style]="getToolbarDynamicStyles()">
+      <div class="filepath-editor-img-toolbar-resize">
+        Resize to:
+        <span class="filepath-editor-button filepath-editor-decrease-size"
+              (click)="decreaseResizePercent(10)">-
+        </span>
+        <span class="filepath-editor-resize-input">
+          {{ getCurrentResizePercent() }} %
+        </span>
+        <span class="filepath-editor-button filepath-editor-increase-size"
+              (click)="increaseResizePercent(10)">+
+        </span>
+      </div>
+      <div class="filepath-editor-img-toolbar-size">
+        Image Size:
+        <span>{{ calculateTargetImageDimensions().width }}</span>
+        &times;
+        <span> {{ calculateTargetImageDimensions().height }} </span>
+        <i class="fas fa-question-circle"
+           *ngIf="getImageSizeHelp() !== null"
+           title="{{getImageSizeHelp()}}">
+        </i>
+      </div>
+    </div>
+    <div class="filepath-editor-image-container"
+         [attr.style]="getImageContainerDynamicStyles()">
+      <div *ngIf="isNoImageUploaded()">
+        <oppia-image-receiver (fileChanged)="onFileChanged($event)"
+                              [allowedImageFormats]="allowedImageFormats"
+                              [maxImageSizeInKB]="100"
+                              >
+        </oppia-image-receiver>
+      </div>
+      <div *ngIf="isImageUploaded()"
+           class="filepath-editor-image-crop-container"
+           (mousemove)="onMouseMoveOnImageArea($event)">
+        <div *ngIf="isUserCropping()"
+             class="filepath-editor-image-shade-overlay">
+        </div>
+        <div class="filepath-editor-crop-area"
+             *ngIf="imageResizeRatio === 1 && isCropAllowed()"
+             [attr.style]="getCropAreaDynamicStyles()"
+             (mousedown)="onMouseDownOnCropArea($event)"
+             (mouseup)="onMouseUpOnCropArea($event)">
+        </div>
+        <div *ngIf="isUserCropping()"
+             class="filepath-editor-image-crop-button-bar"
+             [attr.style]="getCropButtonBarDynamicStyles()">
+          <div class="filepath-editor-button filepath-editor-crop-button"
+               (click)="confirmCropImage()">
+            Crop
+          </div>
+          <div class="filepath-editor-button filepath-editor-crop-button"
+               (click)="cancelCropImage()">
+            Cancel
+          </div>
+        </div>
+        <img [src]="data.metadata.uploadedImageData"
+             [attr.style]="getUploadedImageDynamicStyles()">
+      </div>
+      <div *ngIf="isImageSaved()">
+        <div class="filepath-editor-saved-image-container">
+          <i class="material-icons filepath-editor-trash"
+             (click)="resetFilePathEditor()"
+             title="Delete this image">
+            &#xE872;
+          </i>
+          <img [src]="data.metadata.savedImageUrl" [ngStyle]="imageContainerStyle">
+        </div>
+      </div>
+    </div>
+    <div *ngIf="isImageUploaded()" class="filepath-editor-save-box">
+      <button *ngIf="!imageIsUploading; else Loading"
+              type="button"
+              class="btn btn-success filepath-editor-use e2e-test-use-image"
+              (click)="saveUploadedFile()"
+              [disabled]="isUserCropping()">
+        Use This Image
+      </button>
+      <ng-template #Loading>
+        <button class="btn btn-success filepath-editor-use"
+                type="button"
+                disabled>
+          <span class="spinner-border spinner-border-md"
+                role="status"
+                aria-hidden="true">
+          </span>
+          Uploading..
+        </button>
+      </ng-template>
+      <button type="button"
+              class="btn btn-secondary filepath-editor-discard"
+              (click)="discardUploadedFile()"
+              [disabled]="isUserCropping()">
+        Discard
+      </button>
+    </div>
+    <div *ngIf="invalidTagsAndAttributes.tags.length || invalidTagsAndAttributes.attrs.length"
+         class="oppia-form-error oppia-unsupported-svg-tag-attribute-error"
+         [innerHTML]="'I18N_INVALID_TAGS_AND_ATTRIBUTES_ALERT' | translate: { issueURL: getIssueURL(invalidTagsAndAttributes) }"
+    ></div>
+    <div class="oppia-form-error" *ngIf="invalidImageWarningIsShown">
+      Error: Could not read image file.
+    </div>
+    <div class="oppia-form-error oppia-processed-image-too-large-error" *ngIf="processedImageIsTooLarge">
+      The processed image is too large to upload. Please try cropping or resizing the current image.
+    </div>
+  </div>
+</div>

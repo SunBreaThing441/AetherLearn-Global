@@ -1,0 +1,137 @@
+<div class="history-tab-container e2e-test-exploration-history-tab">
+  <mat-card class="oppia-editor-card history-table-card">
+    <div class="oppia-mobile-collapsible-card-header">
+      <h3 class="history-card-header-text" tabindex="0">History</h3>
+    </div>
+    <div class="oppia-mobile-collapsible-card-content">
+      <div class="history-tab-header">
+        <mat-paginator [length]="versionCheckboxArray.length"
+                       [pageSize]="VERSIONS_PER_PAGE"
+                       class="pagination e2e-test-desktop-history-pagination"
+                       [pageSizeOptions]="versionChoices"
+                       (page)="paginator($event)">
+        </mat-paginator>
+      </div>
+      <div class="filter-container">
+        <span>Filter</span>
+        <input class="oppia-autofocus history-filter-input" type="text" (change)="filterByUsername()" [(ngModel)]="username" placeholder="Search for a user" oppiaFocusOn="usernameInputField">
+        <i class="fa fa-search history-filter-icon"></i>
+      </div>
+      <div class="history-table-header">
+        <div class="history-table-header-version">
+          <span>Version No.</span>
+        </div>
+        <div class="history-table-header-message">
+          <span>Notes</span>
+        </div>
+        <div class="history-table-header-profile">
+          <span>User</span>
+        </div>
+        <div class="history-table-header-date" (click)="reverseDateOrder()" (keydown.enter)="reverseDateOrder()">
+          <span>Date</span>
+        </div>
+      </div>
+      <div class="display-container">
+        <span>Displaying {{ startingIndex }}-{{ endIndex }} of {{ totalExplorationVersionMetadata.length }}</span>
+      </div>
+      <div *ngFor="let metadata of explorationVersionMetadata; index as index" class="history-list-item e2e-test-history-list-item">
+        <div class="history-table-index e2e-test-history-table-index" [attr.aria-label]="'Version number: '+ metadata.versionNumber" tabindex="0">
+          {{ metadata.versionNumber }}.
+        </div>
+        <div class="history-table-message e2e-test-history-table-message" [attr.aria-label]="'Notes: '+ metadata.commitMessage" tabindex="0">
+          {{ metadata.commitMessage }}
+        </div>
+        <div class="history-table-profile">
+          <strong><profile-link-text [attr.aria-label]="'Username: '+ metadata.committerId" [username]="metadata.committerId"></profile-link-text></strong>
+        </div>
+        <div class="history-table-version" title="{{ metadata.tooltipText }}" [attr.aria-label]="'Date: '+ metadata.createdOnMsecsStr" tabindex="0">
+          <em class="e2e-test-history-tab-commit-date">{{ metadata.createdOnMsecsStr }}</em>
+        </div>
+        <div class="history-table-options e2e-test-history-list-options">
+          <div ngbDropdown class="dropdown">
+            <button ngbDropdownToggle class="history-table-option e2e-test-history-table-option" type="button" id="{{ 'dropdownMenuButton-' + index }}" aria-haspopup="true" aria-expanded="false" tabindex="0" role="button" aria-label="options">
+              <i class="fa fa-ellipsis-v"></i>
+            </button>
+            <div ngbDropdownMenu class="dropdown-menu dropdown-menu-start" [attr.aria-label]="'dropdownMenuButton-' + index">
+              <a ngbDropdownItem class="dropdown-item e2e-test-revert-version"
+                 href="javascript:void(0)"
+                 *ngIf="metadata.versionNumber !== currentVersion && isEditable()"
+                 (click)="showCheckRevertExplorationModal(metadata.versionNumber)">
+                Revert
+              </a>
+              <a ngbDropdownItem class="dropdown-item e2e-test-download-exploration" href="javascript:void(0)" (click)="downloadExplorationWithVersion(metadata.versionNumber)"
+                 title="Download exploration as a zip file.">
+                Download
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <div class="pagination-mobile">
+        <mat-paginator [length]="versionCheckboxArray.length"
+                       class="pagination e2e-test-mobile-history-pagination"
+                       [pageSize]="VERSIONS_PER_PAGE"
+                       [pageSizeOptions]="versionChoices"
+                       (page)="paginator($event)">
+        </mat-paginator>
+      </div>
+    </div>
+  </mat-card>
+  <mat-card class="oppia-editor-card oppia-mobile-collapsible-card">
+    <div class="compare-revision-header oppia-mobile-collapsible-card-header">
+      <h3 class="compare-header-text">Compare Revisions</h3>
+      <i class="fa fa-caret-down"
+         aria-hidden="true">
+      </i>
+    </div>
+    <div class="oppia-mobile-collapsible-card-content">
+      <div class="revision-container">
+        <div class="revision-select-container">
+          <mat-form-field appearance="fill" class="e2e-test-history-version-dropdown-first">
+            <mat-label>Revision #1 :</mat-label>
+            <mat-select [(value)]="firstVersion"
+                        class="e2e-test-version-comparasion-select" disableRipple>
+              <mat-option *ngFor="let choice of totalExplorationVersionMetadata ; index as index"
+                          [value]="choice"
+                          (click)="changeSelectedVersions(firstVersion, 1)">{{ choice.versionNumber }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <div class="revision-select-container">
+          <mat-form-field appearance="fill" class="e2e-test-history-version-dropdown-second">
+            <mat-label>Revision #2 :</mat-label>
+            <mat-select [(value)]="secondVersion"
+                        class="e2e-test-version-comparasion-select" disableRipple>
+              <mat-option *ngFor="let choice of totalExplorationVersionMetadata ; index as index"
+                          [value]="choice"
+                          (click)="changeSelectedVersions(secondVersion, 2)">{{ choice.versionNumber }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <button (click)="resetGraph()" class="btn btn-outline-secondary oppia-reset-button e2e-test-reset-graph">Reset</button>
+      </div>
+      <div *ngIf="diffData && !hideHistoryGraph && explorationVersionMetadata" class="graph-diff-container e2e-test-graph-diff-container">
+        <h3>
+          Changes from version {{ compareVersionMetadata.earlierVersion.versionNumber }}
+          to version {{ compareVersionMetadata.laterVersion.versionNumber }}
+        </h3>
+        <div class="exploration-metadata-changes-container">
+          Changes in exploration metadata (title, category etc.):
+          <a class="link-primary view-metadata-changes-button e2e-test-view-metadata-history" (click)="showExplorationMetadataDiffModal()">
+            View metadata changes
+          </a>
+        </div>
+        <div class="state-changes-container">
+          <div>Changes in exploration states:</div>
+          <oppia-version-diff-visualization [diffData]="diffData"
+                                            [earlierVersionHeader]="earlierVersionHeader"
+                                            [laterVersionHeader]="laterVersionHeader">
+          </oppia-version-diff-visualization>
+        </div>
+      </div>
+    </div>
+  </mat-card>
+</div>

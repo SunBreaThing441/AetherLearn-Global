@@ -1,0 +1,244 @@
+<div class="modal-header e2e-test-translation-review-modal">
+  <div class="oppia-modal-info" tabindex="0">
+    <h1 title="{{ heading }}"
+        class="oppia-modal-info-header e2e-test-modal-header">
+      {{ heading }}
+    </h1>
+    <span title="{{ subheading }}"
+          class="oppia-translation-modal-subheading e2e-translation-suggestion-review-subheading"
+          aria-hidden="false">
+      {{ subheading }}
+    </span>
+    <span title="{{ chapterTitle }}"
+          class="oppia-translation-modal-subheading-lesson protractor-translation-suggestion-review-subheading"
+          aria-hidden="false">
+      {{ chapterTitle }}
+    </span>
+    <button type="button"
+            class="btn-close oppia-close-button-position"
+            (click)="cancel()"
+            [disabled]="resolvingSuggestion || isSubmitting"
+            aria-label="Close">
+    </button>
+    <h4 class="oppia-translation-modal-author-header">
+      Submitted by {{ authorName }} in {{ languageDescription }} language
+    </h4>
+  </div>
+</div>
+
+
+<div *ngIf="updateIsDisabled" tabindex="0" class="alert alert-danger oppia-input-error">
+  <strong>Warning:</strong> Please ensure all components (images, math formulas, concept cards) in your translation match
+  the original content to proceed.
+</div>
+
+<div class="modal-body">
+  <div *ngIf="status == 'rejected'" class="translation-suggestion-review-message alert alert-danger">
+    <p>See your submitted translation below. Please submit a new translation to address the requested revisions.</p>
+  </div>
+  <section class="oppia-suggestion-review-container e2e-test-review-content-container">
+    <div class="oppia-suggestion-review-panel-container float-start">
+      <div class="oppia-suggestion-review-panel-header-container">
+        <strong>Content to translate:</strong>
+      </div>
+      <div class="oppia-suggestion-review-panel"
+           [ngClass]="isContentExpanded ? 'oppia-content-expanded' : 'oppia-content-collapsed'"
+           #contentContainer>
+        <ul *ngIf="contentTypeIsSetOfStrings">
+          <li *ngFor="let item of contentHtml; index as idx">
+            {{ item }}
+          </li>
+        </ul>
+        <oppia-rte-output-display *ngIf="!contentTypeIsSetOfStrings"
+                                  [rteString]="contentHtmlAsString"
+                                  #contentPanel>
+        </oppia-rte-output-display>
+      </div>
+      <div class="oppia-collapse-content"
+           *ngIf="isContentOverflowing"
+           (click)="toggleExpansionState(0)">
+        {{ isContentExpanded ? "View Less" : "View More" }}
+      </div>
+    </div>
+    <div class="oppia-suggestion-review-panel-container float-end">
+      <div [attr.dir]="'auto'"
+           class="oppia-suggestion-review-panel-header-container oppia-translation-panel">
+        <strong> Translation:</strong>
+        <button class="btn btn-sm btn-secondary float-end"
+                *ngIf="!startedEditing && status === 'review' && canEditTranslation"
+                (click)="editSuggestion()"
+                [disabled]="resolvingSuggestion || isSubmitting">
+          Edit
+        </button>
+      </div>
+      <div class="oppia-suggestion-review-panel oppia-content e2e-test-translated-content"
+           [ngClass]="isTranslationExpanded ? 'oppia-content-expanded' : 'oppia-content-collapsed'"
+           #translationContainer>
+        <div [attr.dir]="'auto'">
+          <oppia-rte-output-display [rteString]="translationHtml"
+                                    *ngIf="!startedEditing"
+                                    #translationPanel>
+          </oppia-rte-output-display>
+          <ul *ngIf="contentTypeIsSetOfStrings">
+            <li *ngFor="let item of translationHtml; index as idx">
+              {{ item }}
+            </li>
+          </ul>
+          <schema-based-editor [schema]="HTML_SCHEMA"
+                               *ngIf="startedEditing && contentTypeIsHtml"
+                               [(ngModel)]="editedContent.html">
+          </schema-based-editor>
+          <schema-based-editor [schema]="UNICODE_SCHEMA"
+                               *ngIf="startedEditing && contentTypeIsUnicode"
+                               [(ngModel)]="editedContent.html">
+          </schema-based-editor>
+          <schema-based-editor [schema]="SET_OF_STRINGS_SCHEMA"
+                               *ngIf="startedEditing && contentTypeIsSetOfStrings"
+                               [(ngModel)]="editedContent.html">
+          </schema-based-editor>
+        </div>
+        <div class="oppia-translation-error-section"
+             *ngIf="startedEditing && errorFound">
+          <p>
+            {{ errorMessage }}
+          </p>
+        </div>
+      </div>
+      <div class="oppia-translation-review-edit-buttons">
+        <button class="btn btn-secondary me-2"
+                *ngIf="startedEditing"
+                [disabled]="isSubmitting"
+                (click)="cancelEdit()">
+          Cancel
+        </button>
+        <button class="e2e-test-update-translation-button btn btn-success ms-2"
+                *ngIf="startedEditing"
+                (click)="updateSuggestion()"
+                [disabled]="updateIsDisabled || isSubmitting">
+          <i [hidden]="!isSubmitting" class="fa fa-spinner fa-spin"></i>
+          <span [hidden]="isSubmitting">Update</span>
+        </button>
+      </div>
+      <div class="oppia-collapse-content"
+           *ngIf="isTranslationOverflowing"
+           (click)="toggleExpansionState(1)">
+        {{ isTranslationExpanded ? "View Less" : "View More" }}
+      </div>
+    </div>
+  </section>
+  <section class="oppia-suggestion-review-exploration-change"
+           *ngIf="reviewable && hasExplorationContentChanged()">
+    <p class="oppia-suggestion-review-exploration-change-note">
+      <strong>
+        NOTE: The content has been modified since this translation has been submitted.
+        Please edit the translation as necessary.
+        The current content is:
+      </strong>
+    </p>
+    <div class="oppia-suggestion-review-panel">
+      <ul *ngIf="contentTypeIsSetOfStrings">
+        <li *ngFor="let item of entityContentHtml; index as idx">
+          {{ item }}
+        </li>
+      </ul>
+      <oppia-rte-output-display *ngIf="!contentTypeIsSetOfStrings"
+                                [rteString]="entityContentHtmlAsString">
+      </oppia-rte-output-display>
+    </div>
+  </section>
+  <a [href]="'/create/' + activeSuggestion.target_id + '#/translation/' + activeSuggestion.change_cmd.state_name + '/'+ activeSuggestion.change_cmd.content_id + '/' + languageCode" target="_blank" rel="noopener">
+    See Lesson Card
+  </a>
+  <section [hidden]="!reviewable"
+           class="oppia-image-review-panel"
+           *ngIf="explorationImagesString">
+    <div class="oppia-common-scroll-container">
+      <div class="oppia-exploration-image-container float-start">
+        <oppia-rte-output-display *ngIf="!contentTypeIsSetOfStrings"
+                                    [rteString]="explorationImagesString"
+                                    [altTextIsDisplayed]="altTextIsDisplayed"
+                                    #contentPanelWithAltText>
+        </oppia-rte-output-display>
+      </div>
+      <div class="oppia-suggestion-image-container float-end">
+        <oppia-rte-output-display *ngIf="!contentTypeIsSetOfStrings"
+                                    [rteString]="suggestionImagesString"
+                                    [altTextIsDisplayed]="altTextIsDisplayed"
+                                    #contentPanelWithAltText>
+        </oppia-rte-output-display>
+      </div>
+    </div>
+  </section>
+  <div [hidden]="!reviewable"
+       class="oppia-suggestion-review-message">
+    <label for="reviewMessage">Review message (required if rejecting):</label>
+    <textarea id="reviewMessage"
+              class="e2e-test-suggestion-review-message w-100"
+              rows="3"
+              [(ngModel)]="reviewMessage"
+              [attr.maxlength]="MAX_REVIEW_MESSAGE_LENGTH">
+    </textarea>
+    <div class="alert alert-danger"
+         [hidden]="!(reviewMessage.length > MAX_REVIEW_MESSAGE_LENGTH)">
+      Review message should be at most {{ MAX_REVIEW_MESSAGE_LENGTH }} characters.
+    </div>
+  </div>
+  <div [hidden]="reviewable || !reviewMessage || !reviewer"
+       class="oppia-suggestion-review-message">
+    <strong>Reviewer:</strong>
+    {{reviewer}}
+    <br>
+    <strong>Review message: </strong>
+    <div class="oppia-review-message"
+         [ngClass]="{ 'oppia-reviewable-message': reviewable }">
+      {{ reviewMessage }}
+    </div>
+  </div>
+</div>
+
+<div class="modal-footer">
+  <div class="oppia-review-buttons">
+    <span ngbTooltip="Enter review message before rejecting"
+          placement="bottom"
+          [disableTooltip]="reviewMessage.length !== 0">
+      <button class="btn btn-danger oppia-suggestion-resolve-button e2e-test-translation-reject-button"
+              *ngIf="reviewable"
+              [disabled]="reviewMessage.length == 0 || reviewMessage.length > MAX_REVIEW_MESSAGE_LENGTH || resolvingSuggestion || startedEditing"
+              (click)="rejectAndReviewNext(reviewMessage)">
+        <i [hidden]="!resolvingSuggestion"
+           class="fa fa-spinner">
+        </i>
+        <span [hidden]="resolvingSuggestion">
+          {{ lastSuggestionToReview || isLastItem ? 'Reject' : 'Reject and review next' }}
+        </span>
+      </button>
+    </span>
+    <span>
+      <button class="btn btn-success oppia-suggestion-resolve-button e2e-test-translation-accept-button"
+              [disabled]="resolvingSuggestion || reviewMessage.length > MAX_REVIEW_MESSAGE_LENGTH || startedEditing"
+              *ngIf="reviewable"
+              (click)="acceptAndReviewNext()">
+        <i [hidden]="!resolvingSuggestion"
+           class="fa fa-spinner">
+        </i>
+        <span [hidden]="resolvingSuggestion">
+          {{ lastSuggestionToReview || isLastItem ? 'Accept' : 'Accept and review next' }}
+        </span>
+      </button>
+    </span>
+  </div>
+  <div class="oppia-pagination-container">
+    <button type="button"
+            class="oppia-pagination-button e2e-test-pagination-button-previous"
+            (click)="goToPreviousItem()"
+            [disabled]="isFirstItem || isSubmitting || resolvingSuggestion">
+      <span class="material-icons">navigate_before</span>Previous
+    </button>
+    <button type="button"
+            class="oppia-pagination-button e2e-test-pagination-button-next"
+            (click)="goToNextItem()"
+            [disabled]="isLastItem || isSubmitting || resolvingSuggestion">
+      Next<span class="material-icons">navigate_next</span>
+    </button>
+  </div>
+</div>

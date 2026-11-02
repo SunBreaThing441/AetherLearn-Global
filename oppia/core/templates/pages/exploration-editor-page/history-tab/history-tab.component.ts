@@ -1,0 +1,541 @@
+// Copyright 2014 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Component for the exploration history tab.
+ */
+
+import {Component, OnInit, OnDestroy, ChangeDetectorRef} from '@angular/core';
+import {NgbModal, NgbModalRef} from '@ng-bootstrap/ng-bootstrap';
+import {PageEvent} from '@angular/material/paginator';
+import {Subscription} from 'rxjs';
+import cloneDeep from 'lodash/cloneDeep';
+import {CheckRevertExplorationModalComponent} from './modal-templates/check-revert-exploration-modal.component';
+import {RevertExplorationModalComponent} from './modal-templates/revert-exploration-modal.component';
+import {ExplorationMetadataDiffModalComponent} from '../modal-templates/exploration-metadata-diff-modal.component';
+import {UrlInterpolationService} from 'domain/utilities/url-interpolation.service';
+import {WindowRef} from 'services/contextual/window-ref.service';
+import {DateTimeFormatService} from 'services/date-time-format.service';
+import {EditabilityService} from 'services/editability.service';
+import {LoaderService} from 'services/loader.service';
+import {ExplorationDataService} from '../services/exploration-data.service';
+import {HistoryTabBackendApiService} from '../services/history-tab-backend-api.service';
+import {RouterService} from '../services/router.service';
+import {CheckRevertService} from './services/check-revert.service';
+import {
+  ExplorationSnapshot,
+  VersionTreeService,
+} from './services/version-tree.service';
+import {
+  CompareVersionsService,
+  CompareVersionData,
+} from './services/compare-versions.service';
+import {LoggerService} from 'services/contextual/logger.service';
+
+interface VersionMetadata {
+  versionNumber: number;
+  committerId: string;
+  createdOnMsecsStr: string;
+  commitMessage: string;
+  tooltipText?: string;
+}
+
+@Component({
+  selector: 'oppia-history-tab',
+  templateUrl: './history-tab.component.html',
+  styleUrls: ['./history-tab.component.css'],
+})
+export class HistoryTabComponent implements OnInit, OnDestroy {
+  directiveSubscriptions = new Subscription();
+
+  firstVersion: VersionMetadata | null = null;
+  secondVersion: VersionMetadata | null = null;
+  hideHistoryGraph: boolean = true;
+  selectedVersionsArray: number[] = [];
+  filteredVersionMetadata: VersionMetadata[] = [];
+
+  // Letiable explorationSnapshots is a list of all snapshots for the
+  // exploration in ascending order.
+  explorationSnapshots: ExplorationSnapshot[] = [];
+  currentPage: number = 0;
+  explorationVersionMetadata: VersionMetadata[] | null = null;
+  versionCheckboxArray:
+    | {
+        vnum: number;
+        selected: boolean;
+      }[]
+    | null = [];
+
+  username: string = '';
+  displayedCurrentPageNumber: number = 1;
+  versionNumbersToDisplay: number = 0;
+  VERSIONS_PER_PAGE: number = 10;
+  startingIndex: number = 1;
+  // Calculated as startingIndex + VERSIONS_PER_PAGE - 1 = 1 + 10 - 1 = 10,
+  // i.e. the last version displayed on the first page.
+  endIndex: number = 10;
+  // Page-size options (from VERSIONS_PER_PAGE default of 10, plus 15 and 20)
+  // offered to users in the Material paginator's pageSizeOptions input.
+  versionChoices: number[] = [10, 15, 20];
+  explorationId: string = '';
+  explorationAllSnapshotsUrl: string = '';
+  checkRevertExplorationValidUrl: string = '';
+  revertExplorationUrl: string = '';
+  explorationDownloadUrl: string = '';
+  earlierVersionHeader: string = '';
+  laterVersionHeader: string = '';
+  totalExplorationVersionMetadata: VersionMetadata[] = [];
+  compareVersionMetadata: {
+    earlierVersion?: VersionMetadata;
+    laterVersion?: VersionMetadata;
+  } = {};
+  currentVersion: number = 0;
+  comparisonsAreDisabled: boolean = false;
+  compareVersionsButtonIsHidden: boolean = false;
+  compareVersions: object = {};
+  diffData: CompareVersionData | null = null;
+
+  constructor(
+    private checkRevertService: CheckRevertService,
+    private compareVersionsService: CompareVersionsService,
+    private dateTimeFormatService: DateTimeFormatService,
+    private editabilityService: EditabilityService,
+    private explorationDataService: ExplorationDataService,
+    private historyTabBackendApiService: HistoryTabBackendApiService,
+    private loaderService: LoaderService,
+    private ngbModal: NgbModal,
+    private routerService: RouterService,
+    private urlInterpolationService: UrlInterpolationService,
+    private versionTreeService: VersionTreeService,
+    private windowRef: WindowRef,
+    private loggerService: LoggerService,
+    private changeDetectorRef: ChangeDetectorRef
+  ) {}
+
+  // Compares the two selected versions and displays the comparison
+  // results.
+  compareSelectedVersions(): void {
+    // The selectedVersionsArray may contain empty elements as the
+    // array items are directly manipulated based on indices on change.
+    if (
+      this.selectedVersionsArray &&
+      this.selectedVersionsArray.length === 2 &&
+      Number.isInteger(this.selectedVersionsArray[0]) &&
+      Number.isInteger(this.selectedVersionsArray[1])
+    ) {
+      this.changeCompareVersion();
+      this.hideHistoryGraph = false;
+    }
+  }
+
+  // Changes the checkbox selection and provides an appropriate user
+  // prompt.
+  changeSelectedVersions(
+    snapshot: {
+      versionNumber: number;
+      committerId: string;
+      createdOnMsecsStr: string;
+      commitMessage: string;
+    },
+    item: number
+  ): void {
+    if (
+      item === 1 &&
+      snapshot &&
+      !this.selectedVersionsArray.includes(snapshot.versionNumber)
+    ) {
+      this.selectedVersionsArray[0] = snapshot.versionNumber;
+    }
+    if (
+      item === 2 &&
+      snapshot &&
+      !this.selectedVersionsArray.includes(snapshot.versionNumber)
+    ) {
+      this.selectedVersionsArray[1] = snapshot.versionNumber;
+    }
+    if (this.selectedVersionsArray && this.selectedVersionsArray.length === 2) {
+      this.compareSelectedVersions();
+    } else if (!this.comparisonsAreDisabled) {
+      this.hideHistoryGraph = true;
+      this.compareVersionsButtonIsHidden = false;
+    }
+
+    this.changeDetectorRef.detectChanges();
+  }
+
+  // Refreshes the displayed version history log.
+  refreshVersionHistory(): void {
+    this.loaderService.showLoadingScreen('Loading');
+    this.explorationDataService
+      .getDataAsync(() => {})
+      .then(data => {
+        let currentVersion = data.version ?? 0;
+        this.currentVersion = currentVersion;
+        // The this.compareVersionMetadata is an object with keys
+        // 'earlierVersion' and 'laterVersion' whose values are the
+        // metadata of the compared versions, containing 'committerId',
+        // 'createdOnMsecs', 'commitMessage', and 'versionNumber'.
+        this.compareVersions = {};
+        this.compareVersionMetadata = {};
+
+        // Contains the IDs of the versions selected for comparison.
+        // Should contain a maximum of two elements.
+        this.selectedVersionsArray = [];
+
+        this.hideHistoryGraph = true;
+
+        // Disable all comparisons if there are less than two revisions in
+        // total.
+        this.comparisonsAreDisabled = currentVersion < 2;
+        this.compareVersionsButtonIsHidden = this.comparisonsAreDisabled;
+
+        this.historyTabBackendApiService
+          .getData(this.explorationAllSnapshotsUrl)
+          .then(response => {
+            this.explorationSnapshots = response.snapshots;
+            this.versionTreeService.init(this.explorationSnapshots);
+            // Re-populate versionCheckboxArray and
+            // explorationVersionMetadata when history is refreshed.
+            this.versionCheckboxArray = [];
+            this.explorationVersionMetadata = [];
+            let lowestVersionIndex = 0;
+            for (let i = currentVersion - 1; i >= lowestVersionIndex; i--) {
+              let versionNumber = this.explorationSnapshots[i].version_number;
+              this.explorationVersionMetadata[versionNumber - 1] = {
+                committerId: this.explorationSnapshots[i].committer_id,
+                createdOnMsecsStr:
+                  this.dateTimeFormatService.getLocaleDateTimeHourString(
+                    this.explorationSnapshots[i].created_on_ms
+                  ),
+                commitMessage: this.explorationSnapshots[i].commit_message,
+                versionNumber: this.explorationSnapshots[i].version_number,
+                tooltipText: this.dateTimeFormatService.getDateTimeInWords(
+                  this.explorationSnapshots[i].created_on_ms
+                ),
+              };
+              this.versionCheckboxArray.push({
+                vnum: this.explorationSnapshots[i].version_number,
+                selected: false,
+              });
+            }
+            this.totalExplorationVersionMetadata = cloneDeep(
+              this.explorationVersionMetadata
+            );
+            this.totalExplorationVersionMetadata.reverse();
+            this.filteredVersionMetadata = cloneDeep(
+              this.totalExplorationVersionMetadata
+            );
+            this.loaderService.hideLoadingScreen();
+            this.changeItemsPerPage();
+          });
+      });
+  }
+
+  getVersionHeader(versionMetadata: VersionMetadata): string {
+    return (
+      'Revision #' +
+      versionMetadata.versionNumber +
+      ' by ' +
+      versionMetadata.committerId +
+      ' (' +
+      versionMetadata.createdOnMsecsStr +
+      ')' +
+      (versionMetadata.commitMessage
+        ? ': ' + versionMetadata.commitMessage
+        : '')
+    );
+  }
+
+  filterByUsername(): void {
+    if (!this.username && this.totalExplorationVersionMetadata) {
+      this.filteredVersionMetadata = cloneDeep(
+        this.totalExplorationVersionMetadata
+      );
+    } else {
+      this.filteredVersionMetadata =
+        this.totalExplorationVersionMetadata.filter(metadata => {
+          return (
+            metadata &&
+            metadata.committerId
+              .trim()
+              .toLowerCase()
+              .includes(this.username.trim().toLowerCase())
+          );
+        });
+    }
+    this.versionNumbersToDisplay = this.filteredVersionMetadata.length;
+    this.displayedCurrentPageNumber = 1;
+    this.changeItemsPerPage();
+  }
+
+  // Function to set compared version metadata, download YAML and
+  // generate diff graph and legend when selection is changed.
+  changeCompareVersion(): void {
+    this.diffData = null;
+
+    let earlierComparedVersion = Math.min(
+      this.selectedVersionsArray[0],
+      this.selectedVersionsArray[1]
+    );
+    let laterComparedVersion = Math.max(
+      this.selectedVersionsArray[0],
+      this.selectedVersionsArray[1]
+    );
+
+    let earlierIndex: number | null = null;
+    let laterIndex: number | null = null;
+
+    for (let i = 0; i < this.totalExplorationVersionMetadata.length; i++) {
+      if (
+        this.totalExplorationVersionMetadata[i].versionNumber ===
+        earlierComparedVersion
+      ) {
+        earlierIndex = i;
+      } else if (
+        this.totalExplorationVersionMetadata[i].versionNumber ===
+        laterComparedVersion
+      ) {
+        laterIndex = i;
+      }
+
+      if (earlierIndex !== null && laterIndex !== null) {
+        break;
+      }
+    }
+
+    if (earlierIndex === null || laterIndex === null) {
+      this.compareVersionMetadata.earlierVersion = undefined;
+      this.compareVersionMetadata.laterVersion = undefined;
+      return;
+    }
+
+    this.compareVersionMetadata.earlierVersion =
+      this.totalExplorationVersionMetadata[earlierIndex];
+
+    this.compareVersionMetadata.laterVersion =
+      this.totalExplorationVersionMetadata[laterIndex];
+
+    Promise.resolve(
+      this.compareVersionsService.getDiffGraphData(
+        earlierComparedVersion,
+        laterComparedVersion
+      )
+    ).then(response => {
+      this.loggerService.info('Retrieved version comparison data');
+      this.loggerService.info(String(response));
+
+      this.diffData = response;
+      const earlierVersion = this.compareVersionMetadata.earlierVersion;
+      const laterVersion = this.compareVersionMetadata.laterVersion;
+
+      if (!earlierVersion || !laterVersion) {
+        return;
+      }
+
+      this.earlierVersionHeader = this.getVersionHeader(earlierVersion);
+
+      this.laterVersionHeader = this.getVersionHeader(laterVersion);
+    });
+  }
+
+  // Downloads the zip file for an exploration.
+  downloadExplorationWithVersion(versionNumber: number): void {
+    // Note that this opens (and then immediately closes) a new tab. If
+    // we do this in the same tab, the beforeunload handler is
+    // triggered.
+    this.windowRef.nativeWindow.open(
+      this.explorationDownloadUrl + '?v=' + versionNumber,
+      '&output_format=zip'
+    );
+  }
+
+  showCheckRevertExplorationModal(version: number): void {
+    const modalRef = this.ngbModal.open(CheckRevertExplorationModalComponent, {
+      backdrop: true,
+    });
+    modalRef.componentInstance.version = version;
+    const url = this.urlInterpolationService.interpolateUrl(
+      this.checkRevertExplorationValidUrl,
+      {
+        exploration_id: this.explorationId,
+        version: String(version),
+      }
+    );
+    this.historyTabBackendApiService
+      .getCheckRevertValidData(url)
+      .then(revertData => {
+        if (revertData.valid) {
+          modalRef.close();
+          this.showRevertExplorationModal(version);
+        } else {
+          this.checkRevertService.detailsEventEmitter.emit(revertData.details);
+        }
+      });
+  }
+
+  showRevertExplorationModal(version: number): void {
+    const modalRef = this.ngbModal.open(RevertExplorationModalComponent, {
+      backdrop: true,
+    });
+    modalRef.componentInstance.version = version;
+    modalRef.result.then(
+      version => {
+        const currentVersion = this.explorationDataService.data.version;
+
+        const data = {
+          revertExplorationUrl: this.revertExplorationUrl,
+          currentVersion: currentVersion,
+          revertToVersion: version,
+        };
+        this.historyTabBackendApiService.postData(data).then(
+          () => {
+            const currentUrl = this.windowRef.nativeWindow.location.href;
+            this.windowRef.nativeWindow.location.href = `${currentUrl}#/history`;
+            this.windowRef.nativeWindow.location.reload();
+          },
+          () => {
+            // Note to developers:
+            // This callback is triggered when the Post Request is failed.
+          }
+        );
+      },
+      error => {
+        // Note to developers:
+        // This callback is triggered when the Cancel button is clicked.
+        // No further action is needed.
+      }
+    );
+  }
+
+  paginator(value: PageEvent): void {
+    this.displayedCurrentPageNumber = value.pageIndex + 1;
+
+    if (value.pageSize !== this.VERSIONS_PER_PAGE) {
+      this.VERSIONS_PER_PAGE = value.pageSize;
+    }
+
+    this.changeItemsPerPage();
+
+    this.changeDetectorRef.detectChanges();
+  }
+
+  changeItemsPerPage(): void {
+    const startVersionIndex =
+      (this.displayedCurrentPageNumber - 1) * this.VERSIONS_PER_PAGE;
+    const endVersionIndex =
+      this.displayedCurrentPageNumber * this.VERSIONS_PER_PAGE;
+
+    this.explorationVersionMetadata = this.filteredVersionMetadata.slice(
+      startVersionIndex,
+      endVersionIndex
+    );
+
+    this.startingIndex = startVersionIndex + 1;
+    this.endIndex = Math.min(endVersionIndex, this.versionNumbersToDisplay);
+  }
+
+  isEditable(): boolean {
+    return this.editabilityService.isEditable();
+  }
+
+  resetGraph(): void {
+    this.firstVersion = null;
+    this.secondVersion = null;
+    this.hideHistoryGraph = true;
+    this.selectedVersionsArray = [];
+  }
+
+  reverseDateOrder(): void {
+    if (this.explorationVersionMetadata) {
+      this.explorationVersionMetadata.reverse();
+    }
+  }
+
+  showExplorationMetadataDiffModal(): void {
+    let modalRef: NgbModalRef = this.ngbModal.open(
+      ExplorationMetadataDiffModalComponent,
+      {
+        backdrop: true,
+        windowClass: 'exploration-metadata-diff-modal',
+        size: 'xl',
+      }
+    );
+
+    const diffData = this.diffData as CompareVersionData;
+    modalRef.componentInstance.oldMetadata = diffData.v1Metadata;
+    modalRef.componentInstance.newMetadata = diffData.v2Metadata;
+    modalRef.componentInstance.headers = {
+      leftPane: this.earlierVersionHeader,
+      rightPane: this.laterVersionHeader,
+    };
+
+    modalRef.result.then(
+      () => {},
+      () => {}
+    );
+  }
+
+  ngOnInit(): void {
+    this.directiveSubscriptions.add(
+      this.routerService.onRefreshVersionHistory.subscribe(data => {
+        if (
+          (data && data.forceRefresh) ||
+          this.explorationVersionMetadata === null
+        ) {
+          this.refreshVersionHistory();
+        }
+      })
+    );
+
+    this.explorationId = this.explorationDataService.explorationId;
+    this.explorationAllSnapshotsUrl =
+      '/createhandler/snapshots/' + this.explorationId;
+    this.checkRevertExplorationValidUrl =
+      '/createhandler/check_revert_valid/<exploration_id>/<version>';
+    this.revertExplorationUrl = '/createhandler/revert/' + this.explorationId;
+    this.explorationDownloadUrl =
+      '/createhandler/download/' + this.explorationId;
+
+    /* Letiable definitions:
+     *
+     * explorationVersionMetadata is an object whose keys are version
+     * numbers and whose values are objects containing data of that
+     * revision (that is to be displayed) with the keys 'committerId',
+     * 'createdOnMsecs', 'commitMessage', and 'versionNumber'. It
+     * contains a maximum of 30 versions.
+     *
+     * versionCheckboxArray is an array of the version numbers of the
+     * revisions to be displayed on the page, in the order they are
+     * displayed in.
+     *
+     */
+    this.explorationVersionMetadata = null;
+    this.versionCheckboxArray = [];
+    this.username = '';
+    this.firstVersion = null;
+    this.secondVersion = null;
+
+    this.displayedCurrentPageNumber = this.currentPage + 1;
+    this.versionNumbersToDisplay = 0;
+    this.VERSIONS_PER_PAGE = 10;
+    this.startingIndex = 1;
+    this.endIndex = 10;
+
+    this.versionChoices = [10, 15, 20];
+  }
+
+  ngOnDestroy(): void {
+    this.directiveSubscriptions.unsubscribe();
+  }
+}

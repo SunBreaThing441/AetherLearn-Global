@@ -1,0 +1,76 @@
+<div class="oppia-landing-page">
+  <div class="oppia-landing-section text-center">
+    <div [ngStyle]="{background: 'no-repeat center/cover url(' + backgroundBannerUrl + ')'}">
+      <div class="oppia-landing-section-inner">
+        <div class="oppia-flex-box oppia-flex-row oppia-flex-mobile-column oppia-flex-mobile-align-center">
+          <div class="oppia-flex-item oppia-landing-page-image-container oppia-flex-mobile-order-2">
+            <picture>
+              <source type="image/webp" [srcset]="lessonInDevicesWebpImageSrc">
+              <source type="image/png" [srcset]="lessonInDevicesPngImageSrc">
+              <img class="oppia-devices-image" [src]="lessonInDevicesPngImageSrc" alt="Oppia lesson in different devices.">
+            </picture>
+          </div>
+          <div class="oppia-flex-item oppia-flex-box oppia-flex-column">
+            <div class="oppia-flex-item oppia-text-align-left">
+              <h2>{{ topicTitle }} just got easier. Learn anywhere, anytime with our free and interactive lessons.</h2>
+            </div>
+            <div class="oppia-flex-item oppia-text-align-left oppia-flex-mobile-order-3">
+              <p>Have your students and children get started today on our {{ topicTitle }} lessons. Oppia offers story-based content for learners at many different skill levels, and our resources are free to you, always.</p>
+            </div>
+            <div class="oppia-flex-item oppia-text-align-left oppia-mobile-text-align-center oppia-flex-mobile-order-2">
+              <button class="btn oppia-landing-page-button" (click)="onClickGetStartedButton()">Explore {{ topicTitle }} lessons</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="oppia-landing-section text-center oppia-white-container">
+    <div class="oppia-landing-section-inner oppia-flex-box oppia-flex-column">
+      <div class="oppia-flex-item">
+        <h2>What is unique about our {{ topicTitle }} lessons?</h2>
+      </div>
+      <div class="oppia-flex-item">
+        <div class="oppia-flex-box oppia-flex-row oppia-flex-mobile-column">
+          <div class="oppia-flex-item oppia-langing-page-qualities" *ngFor="let quality of lessonsQualities">
+            <div class="oppia-flex-box oppia-flex-column oppia-flex-mobile-row">
+              <div class="oppia-flex-item oppia-landing-page-image-container">
+                <picture>
+                  <source type="image/webp" [srcset]="getLessonQualityImageSrc(quality.imageWebpFilename)">
+                  <source type="image/png" [srcset]="getLessonQualityImageSrc(quality.imagePngFilename)">
+                  <img [src]="getLessonQualityImageSrc(quality.imagePngFilename)" [alt]="quality.imageAlt">
+                </picture>
+              </div>
+              <div class="oppia-flex-item oppia-landing-qualities-description">
+                <div class="oppia-flex-box oppia-flex-column">
+                  <div class="oppia-flex-item oppia-text-align-left">
+                    <h3>{{ quality.title }}</h3>
+                  </div>
+                  <div class="oppia-flex-item oppia-text-align-left">
+                    <p>{{ quality.description }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="oppia-flex-item oppia-only-display-in-mobile">
+        <button class="btn oppia-landing-page-button" (click)="onClickGetStartedButton()">Explore {{ topicTitle }} lessons</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="oppia-landing-section text-center oppia-grey-container">
+    <div class="oppia-landing-section-inner oppia-flex-box oppia-flex-column oppia-container-low-width">
+      <h3>Get started today! Looking for something else? Check out all of our other lessons in the Basic Mathematics curriculum in the Oppia Classroom! </h3>
+      <div class="oppia-flex-item">
+        <button class="btn oppia-landing-page-button" (click)="onClickGetStartedButton()">Get started with {{ topicTitle }}</button>
+      </div>
+      <div class="oppia-flex-item">
+        <button class="btn oppia-landing-page-button oppia-make-button-transparent" (click)="goToClassroom()">Go to Oppia Classroom</button>
+      </div>
+    </div>
+  </div>
+</div>

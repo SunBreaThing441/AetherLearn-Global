@@ -1,0 +1,29 @@
+<div class="modal-body oppia-long-text e2e-test-translation-tab-welcome-modal">
+  <div class="row">
+    <div class="col-lg-8 col-md-8 col-sm-8 col-7">
+      <h1 class="oppia-welcome-modal-h1" tabindex="0" >Welcome!</h1>
+      <p class="oppia-welcome-modal-p">
+        It looks like you're new to translating explorations.
+      </p>
+      <p class="oppia-welcome-modal-p">
+        Would you like an introduction to translations in Oppia?
+      </p>
+
+      <button type="button"
+              class="btn oppia-welcome-modal-button oppia-transition-200 e2e-test-translation-tab-start-tutorial oppia-autofocus oppia-welcome-modal-left-button"
+              (click)="confirm(explorationId)" autofocus>
+        Yes, please!
+      </button>
+
+      <button type="button"
+              class="btn oppia-welcome-modal-button oppia-transition-200 e2e-test-translation-tab-dismiss-welcome-modal"
+              (click)="cancel(explorationId)">
+        Nope, I'm good.
+      </button>
+    </div>
+
+    <div class="col-lg-4 col-md-4 col-sm-4 col-5">
+      <img class="oppia-welcome-modal-img" [src]="translationWelcomeImgUrl">
+    </div>
+  </div>
+</div>

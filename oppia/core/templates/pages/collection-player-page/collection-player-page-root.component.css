@@ -1,0 +1,10 @@
+html, body {
+  background: #eee no-repeat center center fixed;
+  background-size: cover;
+}
+
+/* To avoid double shadows caused by overlaying preview card
+-over the blank preview card */
+.exploration-summary-tile mat-card {
+  box-shadow: none;
+}

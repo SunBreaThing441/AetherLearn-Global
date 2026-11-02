@@ -1,0 +1,65 @@
+<div id="editorTabTourContainerContent" [hidden]="true">
+  <p tabindex="0">Explorations are learning experiences that you create using Oppia. Think of explorations as a conversation between a student and a tutor.</p>
+</div>
+
+<div id="editorTabTourTutorialCompleteContent" [hidden]="true">
+  <p tabindex="0">Now for the fun part...</p>
+  <p tabindex="0">That's the end of the tour! To finish up, here are some things we suggest:</p>
+  <ul tabindex="0">
+    <li>Create your first card!</li>
+    <li>Preview your exploration.</li>
+    <li>Check out more resources in the <a href="https://oppia.github.io/#/" target="_blank" rel="noopener">Help Center</a>.</li>
+  </ul>
+</div>
+
+<div class="exp-editor-content-container" id="editorTabTourContainer">
+  <div class="exp-editor-main-editor">
+    <div class="oppia-editor-cards-container e2e-test-editor-cards-container">
+      <div class="oppia-editor-header">
+        <oppia-state-name-editor></oppia-state-name-editor>
+      </div>
+      <div>
+        <mat-checkbox class="checkpoint-selection-checkbox e2e-test-checkpoint-selection-checkbox"
+                      (change)="onChangeCardIsCheckpoint()"
+                      [(ngModel)]="stateCardIsCheckpointService.displayed"
+                      [disabled]="!isEditable()">
+          Set as a checkpoint for learners
+        </mat-checkbox>
+      </div>
+      <div *ngIf="areParametersEnabled()">
+        <state-param-changes-editor></state-param-changes-editor>
+      </div>
+      <oppia-state-editor [stateContentPlaceholder]="getStateContentPlaceholder()"
+                          [stateContentSaveButtonPlaceholder]="getStateContentSaveButtonPlaceholder()"
+                          [addState]="addState.bind(this)"
+                          [interactionIsShown]="interactionIsShown"
+                          [explorationIsLinkedToStory]="explorationIsLinkedToStory"
+                          (onSaveStateContent)="saveStateContent($event)"
+                          (onSaveNextContentIdIndex)="saveNextContentIdIndex()"
+                          (onSaveInteractionData)="saveInteractionData($event)"
+                          (onSaveInteractionDefaultOutcome)="saveInteractionDefaultOutcome($event)"
+                          (onSaveInteractionAnswerGroups)="saveInteractionAnswerGroups($event)"
+                          (onSaveLinkedSkillId)="saveLinkedSkillId($event)"
+                          (onSaveInapplicableSkillMisconceptionIds)="saveInapplicableSkillMisconceptionIds($event)"
+                          (onSaveSolution)="saveSolution($event)"
+                          (onSaveHints)="saveHints($event)"
+                          (onSaveSolicitAnswerDetails)="saveSolicitAnswerDetails($event)"
+                          (recomputeGraph)="recomputeGraph()"
+                          (navigateToState)="navigateToState($event)"
+                          (refreshWarnings)="refreshWarnings()">
+      </oppia-state-editor>
+    </div>
+  </div>
+  <div class="exp-editor-overview">
+    <div class="exp-editor-overview-content">
+      <oppia-exploration-graph></oppia-exploration-graph>
+      <div class="exp-editor-content-container" id="editorTabTourTutorialComplete"></div>
+      <oppia-unresolved-answers-overview></oppia-unresolved-answers-overview>
+    </div>
+    <div class="exp-state-version-history">
+      <div tabindex="0"><strong>Version History</strong></div>
+      <oppia-state-version-history [validationErrorIsShown]="validationErrorIsShown"></oppia-state-version-history>
+    </div>
+  </div>
+  <attribution-guide></attribution-guide>
+</div>

@@ -1,0 +1,29 @@
+name: Generate build files
+description: 'Generate build files'
+inputs:
+  prod-env:
+    description: "Whether to build in prod mode."
+    required: false
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - name: Restore build files from cache
+      id: restore_build_files_cache
+      uses: actions/cache@v4
+      with:
+        key: ${{ runner.os }}-build-files-${{ inputs.prod-env != 'false' && 'prod' || 'dev' }}-${{ github.sha }}
+        path: |
+          /home/runner/work/oppia/oppia/build
+          /home/runner/work/oppia/oppia/app.yaml
+          /home/runner/work/oppia/oppia/assets/hashes.json
+          /home/runner/work/oppia/oppia/dist
+          /home/runner/work/oppia/oppia/third_party/generated
+    - name: Build (prod)
+      if: steps.restore_build_files_cache.outputs.cache-hit != 'true' && inputs.prod-env != 'false'
+      run: python -m scripts.build --prod_env
+      shell: bash
+    - name: Build (dev)
+      if: steps.restore_build_files_cache.outputs.cache-hit != 'true' && inputs.prod-env == 'false'
+      run: python -c "from scripts import build; build.build_js_files(dev_mode=True)"
+      shell: bash

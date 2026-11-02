@@ -1,0 +1,140 @@
+// Copyright 2022 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Component for add audio translation modal.
+ */
+
+import {Component, Input, OnInit} from '@angular/core';
+import {NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
+import {ConfirmOrCancelModal} from 'components/common-layout-directives/common-elements/confirm-or-cancel-modal.component';
+import {AssetsBackendApiService} from 'services/assets-backend-api.service';
+import {PageContextService} from 'services/page-context.service';
+
+@Component({
+  selector: 'oppia-add-audio-translation-modal',
+  templateUrl: './add-audio-translation-modal.component.html',
+  styleUrls: ['./add-audio-translation-modal.component.css'],
+})
+export class AddAudioTranslationModalComponent
+  extends ConfirmOrCancelModal
+  implements OnInit
+{
+  // These properties are initialized using Angular lifecycle hooks
+  // and we need to do non-null assertion. For more information, see
+  // https://github.com/oppia/oppia/wiki/Guide-on-defining-types#ts-7-1
+  @Input() audioFile!: File;
+  @Input() generatedFilename!: string;
+  @Input() isAudioAvailable!: boolean;
+  @Input() languageCode!: string;
+
+  uploadedFile!: Blob | null;
+  droppedFile!: File;
+  saveButtonText!: string;
+  saveInProgress!: boolean;
+  errorMessage!: string | null;
+  BUTTON_TEXT_SAVE: string = 'Save';
+  BUTTON_TEXT_SAVING: string = 'Saving...';
+  ERROR_MESSAGE_BAD_FILE_UPLOAD: string =
+    'There was an error uploading the audio file.';
+
+  constructor(
+    private assetsBackendApiService: AssetsBackendApiService,
+    private pageContextService: PageContextService,
+    private ngbActiveModal: NgbActiveModal
+  ) {
+    super(ngbActiveModal);
+  }
+
+  isAudioTranslationValid(): boolean {
+    return (
+      Boolean(this.uploadedFile) &&
+      this.uploadedFile !== null &&
+      this.uploadedFile.size !== null &&
+      this.uploadedFile.size > 0
+    );
+  }
+
+  updateUploadedFile(file: Blob): void {
+    this.errorMessage = null;
+    this.uploadedFile = file;
+  }
+
+  clearUploadedFile(): void {
+    this.errorMessage = null;
+    this.uploadedFile = null;
+  }
+
+  confirm(): void {
+    if (this.isAudioTranslationValid()) {
+      this.saveButtonText = this.BUTTON_TEXT_SAVING;
+      this.saveInProgress = true;
+      let explorationId = this.pageContextService.getExplorationId();
+      let file = this.uploadedFile;
+      if (file) {
+        Promise.resolve(
+          this.assetsBackendApiService.saveAudio(
+            explorationId,
+            this.generatedFilename,
+            file
+          )
+        ).then(
+          response => {
+            if (file) {
+              this.ngbActiveModal.close({
+                languageCode: this.languageCode,
+                filename: this.generatedFilename,
+                fileSizeBytes: file.size,
+                durationSecs: response.duration_secs,
+              });
+            }
+          },
+          errorResponse => {
+            this.errorMessage = this.extractUserFacingError(
+              errorResponse.error
+            );
+            this.uploadedFile = null;
+            this.saveButtonText = this.BUTTON_TEXT_SAVE;
+            this.saveInProgress = false;
+          }
+        );
+      }
+    }
+  }
+
+  // Strips technical prefixes from backend schema validation errors
+  // so only human-readable messages are shown to the user.
+  private extractUserFacingError(rawError: string | undefined): string {
+    if (!rawError) {
+      return this.ERROR_MESSAGE_BAD_FILE_UPLOAD;
+    }
+
+    // Strip the "At '<url>' these errors are happening:\n" prefix.
+    const headerPattern = /^At '.*' these errors are happening:\n/;
+    let cleaned = rawError.replace(headerPattern, '');
+
+    // Strip "Schema validation for '<field>' failed: " from each line.
+    const schemaPattern = /Schema validation for '[^']+' failed: /g;
+    cleaned = cleaned.replace(schemaPattern, '');
+
+    return cleaned.trim() || this.ERROR_MESSAGE_BAD_FILE_UPLOAD;
+  }
+
+  ngOnInit(): void {
+    // Whether there was an error uploading the audio file.
+    this.saveButtonText = this.BUTTON_TEXT_SAVE;
+    this.saveInProgress = false;
+    this.droppedFile = this.audioFile;
+  }
+}

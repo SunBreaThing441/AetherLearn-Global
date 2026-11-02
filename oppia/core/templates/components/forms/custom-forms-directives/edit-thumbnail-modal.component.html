@@ -1,0 +1,86 @@
+<div class="oppia-edit-thumbnail-container">
+  <div class="modal-header">
+    <h3>Upload Thumbnail</h3>
+  </div>
+
+  <div class="modal-body oppia-thumbnail-uploader-container">
+    <div class="oppia-thumbnail-uploader">
+      <div [hidden]="uploadedImage">
+        <strong tabindex="0">Please upload an SVG image.</strong>
+        <div class="alert alert-warning" tabindex="0">
+          <span>Here are some guidelines to follow:</span>
+          <ul>
+            <li>Uploaded image should have an aspect ratio of {{ aspectRatio }}.</li>
+            <li>Uploaded image should have a transparent background.</li>
+            <li>Please ensure that the uploaded image is less than 100 KB.</li>
+          </ul>
+        </div>
+        <oppia-image-receiver (fileChanged)="onFileChanged($event)"
+                              [allowedImageFormats]="allowedImageFormats"
+                              [maxImageSizeInKB]="100"
+                              >
+        </oppia-image-receiver>
+      </div>
+      <div class="oppia-form-error" *ngIf="invalidImageWarningIsShown">
+        Please upload a valid SVG image.
+      </div>
+      <div class="oppia-form-error" *ngIf="invalidFilenameWarningIsShown">
+        Please upload a valid filename image i.e; The svg file must not start with a dot or have '/' or 2 consecutive dots.
+      </div>
+      <div *ngIf="invalidTagsAndAttributes.tags.length || invalidTagsAndAttributes.attrs.length"
+           class="oppia-form-error oppia-unsupported-svg-tag-attribute-error"
+           [innerHTML]="'I18N_INVALID_TAGS_AND_ATTRIBUTES_ALERT' | translate: { issueURL: getIssueURL(invalidTagsAndAttributes) }">
+      </div>
+      <div [hidden]="!uploadedImage">
+        <div [hidden]="!allowedBgColors">
+          <div [hidden]="!(allowedBgColors.length > 1)">Choose background color:</div>
+          <div [hidden]="!(allowedBgColors.length > 1)" class="oppia-thumbnail-colour-select">
+            <div *ngFor="let color of allowedBgColors"
+                 [ngStyle]="{'background': color}"
+                 (click)="updateBackgroundColor(color)">
+            </div>
+          </div>
+          <div [hidden]="!(allowedBgColors.length === 1)" class="alert alert-warning">
+            <span>
+              Please check that the thumbnail below has the following background color:
+              <i class="fa fa-square" [ngStyle]="{'color': allowedBgColors[0]}"></i>.
+              If not, please ensure that you are uploading an image with transparent background. Thanks!
+            </span>
+          </div>
+        </div>
+        <div @fade class="oppia-thumbnail-container e2e-test-thumbnail-container" *ngIf="uploadedImage"
+             [ngStyle]="{'background': previewDescriptionBgColor, 'color': previewDescriptionBgColor ? '#FFFFFF' : '', 'width': aspectRatio === '4:3' ? '248px' : '320px' }">
+          <button class="btn btn-secondary oppia-thumbnail-reset-button e2e-thumbnail-reset-button e2e-test-thumbnail-reset-button" (click)="reset()">
+            <i class="fas fa-times oppia-vcenter"></i>
+          </button>
+          <div>
+            <oppia-thumbnail-display *ngIf="uploadedImage"
+                                     [classes]="['oppia-thumbnail-image']"
+                                     [imgSrc]="uploadedImage"
+                                     [aspectRatio]="'16:9'"
+                                     [background]="bgColor">
+            </oppia-thumbnail-display>
+            <div class="oppia-thumbnail-preview-title">
+              {{ previewTitle }}
+            </div>
+            <div class="oppia-thumbnail-preview-description">
+              {{ previewDescription }}
+            </div>
+            <div *ngIf="previewFooter" class="oppia-thumbnail-preview-footer">
+              {{ previewFooter }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="cancel()" [innerHTML]="'I18N_MODAL_CANCEL_BUTTON' | translate"></button>
+    <button class="btn btn-success e2e-test-photo-upload-submit"
+            (click)="confirm()"
+            [disabled]="!uploadedImage || !thumbnailHasChanged">
+      Add Thumbnail
+    </button>
+  </div>
+</div>

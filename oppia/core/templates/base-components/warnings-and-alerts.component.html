@@ -1,0 +1,5 @@
+<div>
+  <div *ngFor="let message of getMessages(); index as idx">
+    <oppia-alert-message [messageObject]="message" [messageIndex]="idx"></oppia-alert-message>
+  </div>
+</div>

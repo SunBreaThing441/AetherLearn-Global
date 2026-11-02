@@ -1,0 +1,21 @@
+
+
+.collapse-container {
+  height: 100%;
+  width: 100%;
+}
+
+.collapse-container p {
+  margin: 0;
+}
+
+.title-container {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.panel-title {
+  font-weight: 700;
+}

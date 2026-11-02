@@ -1,0 +1,18 @@
+
+<div class="oppia-example-header-block" [ngClass]="{'left-padding': !disableSorting}">
+  <div class="oppia-example-header">
+    <span *ngIf="!isActive" [attr.title]="shortSummary" class="e2e-test-worked-example-title">
+      {{ shortSummary }}
+      <span *ngIf="numItems > 1" class="badge bg-primary position-relative oppia-num-items-badge">
+        +{{numItems - 1 }}
+      </span>
+    </span>
+    <span *ngIf="isActive">&nbsp;</span>
+  </div>
+</div>
+
+<span class="oppia-delete-example-button e2e-test-delete-example-button oppia-transition-200"
+      *ngIf="isDeleteAvailable"
+      (click)="deleteItem($event)">
+  <i class="fas fa-times"></i>
+</span>

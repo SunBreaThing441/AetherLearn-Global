@@ -1,0 +1,37 @@
+<div class="modal-header">
+  <h3>
+    Changes made by {{ committerUsername }} from version {{ oldVersion }} to {{ oldVersion + 1 }}
+  </h3>
+  <i class="fa fa-times" (click)="cancel()"></i>
+</div>
+
+<div class="modal-body">
+  <div *ngIf="yamlStrs.previousVersionMetadataYaml && yamlStrs.currentVersionMetadataYaml; else elseBlock">
+    <oppia-codemirror-mergeview [options]="CODEMIRROR_MERGEVIEW_OPTIONS"
+                                [leftValue]="yamlStrs.previousVersionMetadataYaml"
+                                [rightValue]="yamlStrs.currentVersionMetadataYaml">
+    </oppia-codemirror-mergeview>
+    <div align="center" class="oppia-click-arrows-text">
+      <strong>Click arrows to desynchronize scrolling</strong>
+    </div>
+  </div>
+  <ng-template #elseBlock>
+    <div class="interstitial-loading">
+      <div class="spinner-border"></div>
+    </div>
+  </ng-template>
+</div>
+
+<div class="modal-footer">
+  <ng-template [ngIf]="yamlStrs.previousVersionMetadataYaml && yamlStrs.currentVersionMetadataYaml">
+    <button [disabled]="validationErrorIsShown" class="btn btn-outline-primary previous-commit" *ngIf="canExploreBackwardVersionHistory() || validationErrorIsShown" (click)="onClickExploreBackwardVersionHistory()">
+      View previous commit by <strong>{{ getLastEditedCommitterUsername() }}</strong> at <strong>version {{ getLastEditedVersionNumber() + 1 || (validationErrorIsShown && getLastEditedVersionNumberInCaseOfError()) }}</strong>
+    </button>
+    <span *ngIf="validationErrorIsShown" class="error-message">
+      Unable to display version history for version {{ getLastEditedVersionNumberInCaseOfError() }}, due to an error loading that version of the exploration.
+    </span>
+    <button class="btn btn-outline-primary next-commit" *ngIf="canExploreForwardVersionHistory()" (click)="onClickExploreForwardVersionHistory()">
+      View next commit by <strong>{{ getNextEditedCommitterUsername() }}</strong> at <strong>version {{ getNextEditedVersionNumber() + 1 }}</strong>
+    </button>
+  </ng-template>
+</div>

@@ -1,0 +1,387 @@
+// Copyright 2015 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Component for the parameter changes editor (which is shown in
+ * both the exploration settings tab and the state editor page).
+ */
+
+import {Component, Injector, Input, OnDestroy, OnInit} from '@angular/core';
+import {UrlInterpolationService} from 'domain/utilities/url-interpolation.service';
+import {Subscription} from 'rxjs';
+import {ExplorationParamSpecsService} from '../services/exploration-param-specs.service';
+import {ParamChange} from 'domain/exploration/param-change.model';
+import {EditabilityService} from 'services/editability.service';
+import {AlertsService} from 'services/alerts.service';
+import {ExplorationStatesService} from '../services/exploration-states.service';
+import {ExternalSaveService} from 'services/external-save.service';
+import {AppConstants} from 'app.constants';
+import {StateParamChangesService} from 'components/state-editor/state-editor-properties-services/state-param-changes.service';
+import {ExplorationParamChangesService} from '../services/exploration-param-changes.service';
+import cloneDeep from 'lodash/cloneDeep';
+import {ParamSpecs} from 'domain/exploration/param-specs.model';
+import {CdkDragSortEvent, moveItemInArray} from '@angular/cdk/drag-drop';
+
+interface RandomSelectorCustomizationArgs {
+  list_of_values: (string | number | boolean)[];
+}
+
+interface CopierCustomizationArgs {
+  value: string | number | boolean;
+}
+
+interface ParamChangeCustomizationArgs {
+  value: string;
+  list_of_values: string[];
+}
+
+// The shared service properties that hold the current and saved param changes.
+const PARAM_CHANGES_PROPERTY_NAMES = {
+  displayed: 'displayed',
+  savedMemento: 'savedMemento',
+} as const;
+
+type ParamChangesPropertyName = keyof typeof PARAM_CHANGES_PROPERTY_NAMES;
+
+// The value generator ids supported by the param changes editor.
+const PARAM_GENERATOR_IDS = {
+  Copier: 'Copier',
+  RandomSelector: 'RandomSelector',
+} as const;
+
+@Component({
+  selector: 'param-changes-editor',
+  templateUrl: './param-changes-editor.component.html',
+  styleUrls: ['./param-changes-editor.component.css'],
+})
+export class ParamChangesEditorComponent implements OnInit, OnDestroy {
+  @Input() paramChangesServiceName!:
+    | 'explorationParamChangesService'
+    | 'stateParamChangesService';
+  @Input() postSaveHook!: () => void;
+  @Input() currentlyInSettingsTab!: boolean;
+
+  SERVICE_MAPPING = {
+    explorationParamChangesService: ExplorationParamChangesService,
+    stateParamChangesService: StateParamChangesService,
+  };
+
+  directiveSubscriptions = new Subscription();
+  isParamChangesEditorOpen: boolean = false;
+  paramNameChoices: {id: string; text: string}[] = [];
+  warningText: string = '';
+  HUMAN_READABLE_ARGS_RENDERERS: {
+    Copier: (value: CopierCustomizationArgs) => string;
+    RandomSelector: (value: RandomSelectorCustomizationArgs) => string;
+  } = {
+    Copier: (value: CopierCustomizationArgs): string => {
+      return 'to ' + value.value;
+    },
+
+    RandomSelector: (value: RandomSelectorCustomizationArgs): string => {
+      let result = 'to one of [';
+
+      for (let i = 0; i < value.list_of_values.length; i++) {
+        if (i !== 0) {
+          result += ', ';
+        }
+
+        result += String(value.list_of_values[i]);
+      }
+
+      result += '] at random';
+
+      return result;
+    },
+  };
+
+  PREAMBLE_TEXT = {
+    Copier: 'to',
+    RandomSelector: 'to one of',
+  };
+
+  paramChangesService!:
+    | ExplorationParamChangesService
+    | StateParamChangesService;
+
+  constructor(
+    private alertsService: AlertsService,
+    private externalSaveService: ExternalSaveService,
+    private explorationStatesService: ExplorationStatesService,
+    private explorationParamSpecsService: ExplorationParamSpecsService,
+    public editabilityService: EditabilityService,
+    private urlInterpolationService: UrlInterpolationService,
+    private injector: Injector
+  ) {}
+
+  drop(event: CdkDragSortEvent<ParamChange[]>): void {
+    moveItemInArray(
+      this.displayedParamChanges,
+      event.previousIndex,
+      event.currentIndex
+    );
+  }
+
+  /**
+   * Returns the param changes stored in the given property of the underlying
+   * service. The "displayed" and "savedMemento" properties are typed as a
+   * union of all state property values, but their runtime value is always a
+   * ParamChange[] array. This is the single documented cast point for the
+   * displayedParamChanges and savedParamChanges getters.
+   */
+  private getParamChangesFromService(
+    propertyName: ParamChangesPropertyName
+  ): ParamChange[] {
+    return this.paramChangesService[
+      PARAM_CHANGES_PROPERTY_NAMES[propertyName]
+    ] as ParamChange[];
+  }
+
+  get displayedParamChanges(): ParamChange[] {
+    return this.getParamChangesFromService(
+      PARAM_CHANGES_PROPERTY_NAMES.displayed
+    );
+  }
+
+  get savedParamChanges(): ParamChange[] {
+    return this.getParamChangesFromService(
+      PARAM_CHANGES_PROPERTY_NAMES.savedMemento
+    );
+  }
+
+  /**
+   * Returns the param specs stored by the param specs service. Its "displayed"
+   * property is typed as a union of all state property values, but its runtime
+   * value is always a ParamSpecs object. This is the single documented cast
+   * point for the param specs.
+   */
+  get displayedParamSpecs(): ParamSpecs {
+    return this.explorationParamSpecsService.displayed as ParamSpecs;
+  }
+
+  openParamChangesEditor(): void {
+    if (!this.editabilityService.isEditable()) {
+      return;
+    }
+
+    this.isParamChangesEditorOpen = true;
+    this.paramNameChoices = this.generateParamNameChoices();
+
+    if (this.displayedParamChanges.length === 0) {
+      this.addParamChange();
+    }
+  }
+
+  addParamChange(): void {
+    let newParamName =
+      this.paramNameChoices.length > 0 ? this.paramNameChoices[0].id : 'x';
+    let newParamChange = ParamChange.createDefault(newParamName);
+    // Add the new param name to this.paramNameChoices, if necessary,
+    // so that it shows up in the dropdown.
+    const paramSpecs = this.displayedParamSpecs;
+
+    if (
+      paramSpecs.addParamIfNew(
+        newParamChange.name,
+        paramSpecs.getParamSpec(newParamChange.name)
+      )
+    ) {
+      this.paramNameChoices = this.generateParamNameChoices();
+    }
+    this.displayedParamChanges.push(newParamChange);
+  }
+
+  generateParamNameChoices(): {id: string; text: string}[] {
+    return this.displayedParamSpecs
+      .getParamNames()
+      .sort()
+      .map(paramName => {
+        return {
+          id: paramName,
+          text: paramName,
+        };
+      });
+  }
+
+  onChangeGeneratorType(paramChange: ParamChange): void {
+    paramChange.resetCustomizationArgs();
+  }
+
+  getCustomizationArgs(paramChange: ParamChange): ParamChangeCustomizationArgs {
+    // This returns the same customizationArgs object that is stored in the
+    // param change so that the value generator editors can update it in place
+    // via their two-way bindings. The cast is safe because the value generator
+    // editor's input type is a required-fields subset of ParamChange's
+    // customization args, and only the generator-matching field is ever read
+    // or written at runtime.
+    return paramChange.customizationArgs as ParamChangeCustomizationArgs;
+  }
+
+  getHumanReadableArgs(paramChange: ParamChange): string {
+    const customizationArgs = this.getCustomizationArgs(paramChange);
+
+    if (paramChange.generatorId === PARAM_GENERATOR_IDS.Copier) {
+      return this.HUMAN_READABLE_ARGS_RENDERERS.Copier(customizationArgs);
+    }
+
+    return this.HUMAN_READABLE_ARGS_RENDERERS.RandomSelector(customizationArgs);
+  }
+
+  areDisplayedParamChangesValid(): boolean {
+    let displayed = this.paramChangesService.displayed;
+
+    if (!Array.isArray(displayed)) {
+      return false;
+    }
+
+    let paramChanges = displayed as ParamChange[];
+
+    for (let i = 0; i < paramChanges.length; i++) {
+      let paramChange = paramChanges[i];
+      let paramName = paramChange.name;
+
+      if (paramName === '') {
+        this.warningText = 'Please pick a non-empty parameter name.';
+        return false;
+      }
+
+      if (
+        (AppConstants.INVALID_PARAMETER_NAMES as readonly string[]).includes(
+          paramName
+        )
+      ) {
+        this.warningText =
+          "The parameter name '" + paramName + "' is reserved.";
+        return false;
+      }
+
+      let ALPHA_CHARS_REGEX = /^[A-Za-z]+$/;
+
+      if (!ALPHA_CHARS_REGEX.test(paramName)) {
+        this.warningText =
+          'Parameter names should use only alphabetic characters.';
+        return false;
+      }
+
+      let generatorId = paramChange.generatorId;
+      let customizationArgs = paramChange.customizationArgs;
+
+      if (!this.PREAMBLE_TEXT.hasOwnProperty(generatorId)) {
+        this.warningText = 'Each parameter should have a generator id.';
+        return false;
+      }
+
+      if (
+        generatorId === PARAM_GENERATOR_IDS.RandomSelector &&
+        customizationArgs?.list_of_values?.length === 0
+      ) {
+        this.warningText =
+          'Each parameter should have at least one possible value.';
+        return false;
+      }
+    }
+
+    this.warningText = '';
+    return true;
+  }
+
+  saveParamChanges(): void {
+    // Validate displayed value.
+    if (!this.areDisplayedParamChangesValid()) {
+      this.alertsService.addWarning('Invalid parameter changes.');
+      return;
+    }
+
+    this.isParamChangesEditorOpen = false;
+
+    // Update paramSpecs manually with newly-added param names.
+    this.explorationParamSpecsService.restoreFromMemento();
+    this.displayedParamChanges.forEach(paramChange => {
+      const paramSpecs = this.displayedParamSpecs;
+
+      const paramSpec = paramSpecs.getParamSpec(paramChange.name);
+
+      paramSpecs.addParamIfNew(paramChange.name, paramSpec);
+    });
+
+    this.explorationParamSpecsService.saveDisplayedValue();
+
+    this.paramChangesService.saveDisplayedValue();
+    if (!this.currentlyInSettingsTab) {
+      this.explorationStatesService.saveStateParamChanges(
+        (this.paramChangesService as StateParamChangesService).stateName,
+        cloneDeep(this.displayedParamChanges)
+      );
+    }
+    if (this.postSaveHook) {
+      this.postSaveHook();
+    }
+  }
+
+  deleteParamChange(index: number): void {
+    if (
+      index < 0 ||
+      index >= (this.paramChangesService.displayed as []).length
+    ) {
+      this.alertsService.addWarning(
+        'Cannot delete parameter change at position ' +
+          index +
+          ': index out of range'
+      );
+    }
+
+    this.displayedParamChanges.forEach(paramChange => {
+      const paramSpecs = this.displayedParamSpecs;
+
+      const paramSpec = paramSpecs.getParamSpec(paramChange.name);
+
+      paramSpecs.addParamIfNew(paramChange.name, paramSpec);
+    });
+    this.paramNameChoices = this.generateParamNameChoices();
+
+    (this.paramChangesService.displayed as []).splice(index, 1);
+  }
+
+  cancelEdit(): void {
+    this.paramChangesService.restoreFromMemento();
+    this.isParamChangesEditorOpen = false;
+  }
+
+  getStaticImageUrl(imagePath: string): string {
+    return this.urlInterpolationService.getStaticImageUrl(imagePath);
+  }
+
+  ngOnInit(): void {
+    this.paramChangesService = this.injector.get(
+      this.SERVICE_MAPPING[this.paramChangesServiceName]
+    );
+
+    this.isParamChangesEditorOpen = false;
+    this.warningText = '';
+
+    this.directiveSubscriptions.add(
+      this.externalSaveService.onExternalSave.subscribe(() => {
+        if (this.isParamChangesEditorOpen) {
+          this.saveParamChanges();
+        }
+      })
+    );
+
+    this.paramNameChoices = [];
+  }
+
+  ngOnDestroy(): void {
+    this.directiveSubscriptions.unsubscribe();
+  }
+}

@@ -1,0 +1,117 @@
+// Copyright 2024 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Auth guard for the lesson player page.
+ */
+
+import {Injectable} from '@angular/core';
+import {
+  ActivatedRouteSnapshot,
+  CanActivate,
+  Router,
+  RouterStateSnapshot,
+} from '@angular/router';
+
+import {AppConstants} from 'app.constants';
+import {Location} from '@angular/common';
+import {PlatformFeatureService} from 'services/platform-feature.service';
+import {AccessValidationBackendApiService} from 'pages/oppia-root/routing/access-validation-backend-api.service';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class LessonPlayerPageAuthGuard implements CanActivate {
+  constructor(
+    private platformFeatureService: PlatformFeatureService,
+    private accessValidationBackendApiService: AccessValidationBackendApiService,
+    private router: Router,
+    private location: Location
+  ) {}
+
+  async canActivate(
+    route: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot
+  ): Promise<boolean> {
+    return new Promise<boolean>((resolve, reject) => {
+      const version = route.queryParams.v || null;
+      let explorationId = route.paramMap.get('exploration_id') || '';
+      // Validate the exploration ID before making any backend requests.
+      // Invalid IDs (e.g. containing special characters) should be rejected
+      // on the frontend to avoid unnecessary backend calls and server errors.
+      const entityIdRegex = new RegExp(AppConstants.ENTITY_ID_REGEX);
+      if (!entityIdRegex.test(explorationId)) {
+        if (state.url.includes('embed')) {
+          this.router
+            .navigate([
+              `${AppConstants.PAGES_REGISTERED_WITH_FRONTEND.ERROR_IFRAMED.ROUTE}`,
+            ])
+            .then(() => {
+              this.location.replaceState(state.url);
+              resolve(false);
+            }, reject);
+        } else {
+          this.router
+            .navigate([
+              `${AppConstants.PAGES_REGISTERED_WITH_FRONTEND.ERROR.ROUTE}/400`,
+            ])
+            .then(() => {
+              this.location.replaceState(state.url);
+              resolve(false);
+            }, reject);
+        }
+        return;
+      }
+      if (this.platformFeatureService.status.NewLessonPlayer.isEnabled) {
+        this.accessValidationBackendApiService
+          .validateAccessToExplorationPlayerPage(explorationId, version)
+          .then(() => {
+            resolve(true);
+          })
+          .catch(err => {
+            let currentUrl = state.url;
+            if (currentUrl.includes('embed')) {
+              this.router
+                .navigate([
+                  `${AppConstants.PAGES_REGISTERED_WITH_FRONTEND.ERROR_IFRAMED.ROUTE}`,
+                ])
+                .then(() => {
+                  this.location.replaceState(state.url);
+                  resolve(false);
+                });
+              return;
+            } else {
+              this.router
+                .navigate([
+                  `${AppConstants.PAGES_REGISTERED_WITH_FRONTEND.ERROR.ROUTE}/${err.status}`,
+                ])
+                .then(() => {
+                  this.location.replaceState(state.url);
+                  resolve(false);
+                });
+            }
+          });
+      } else {
+        this.router
+          .navigate([
+            `${AppConstants.PAGES_REGISTERED_WITH_FRONTEND.ERROR.ROUTE}/404`,
+          ])
+          .then(() => {
+            this.location.replaceState(state.url);
+            resolve(false);
+          });
+      }
+    });
+  }
+}

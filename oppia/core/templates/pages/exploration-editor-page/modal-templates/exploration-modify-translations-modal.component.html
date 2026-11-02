@@ -1,0 +1,52 @@
+<div class="modal-header">
+  <h4 class="modal-title">Modify Existing Translations</h4>
+</div>
+<div class="modal-body e2e-test-modify-translations-modal-body">
+  <p>
+    Please update any translations below which are easy to update, and tick the ones you're
+    confident about. Those translations will be saved and shown directly to learners as soon
+    as you save the pending changes to the exploration.
+  </p>
+  <p class="modify-translations-modal-text">Any translations that don't have a check mark will be sent for re-translation.</p>
+  <div *ngIf="translationsHaveLoaded && (contentTranslations | keyvalue).length > 0" class="content-translations-container">
+    <form #form="ngForm">
+      <div *ngFor="let item of contentTranslations | keyvalue">
+        <div *ngIf="item.value.needsUpdate === false" class="content-translation-block">
+          <div class="content-translation-language">
+            <span>
+              <input type="checkbox"
+                     name="checkbox-{{item.key}}"
+                     [(ngModel)]="languageIsCheckedStatusDict[item.key]"
+                     class="e2e-test-{{ item.key }}-translation-checkbox">
+              <p>{{ getLanguageName(item.key) }}</p>
+              <div  *ngIf="!languageIsCheckedStatusDict[item.key]" class="re-translation-indicator">
+                Will be sent for re-translation
+              </div>
+            </span>
+            <i class="fas fa-pencil-alt e2e-test-{{ item.key }}-translation-edit" (click)="openTranslationEditor(item.key)"></i>
+          </div>
+          <div class="content-translation-value e2e-test-translation-{{ item.key }}">
+            <oppia-rte-output-display *ngIf="item.value.dataFormat === 'html' || item.value.dataFormat === 'unicode'"
+                                       [rteString]="getTranslationString(item.value.translation)"
+                                      class="translations-rte-output-display">
+            </oppia-rte-output-display>
+            <div *ngIf="isSetOfStringDataFormat()">
+              <ul role="tablist">
+                <li *ngFor="let ruleContent of item.value.translation">
+                  {{ ruleContent }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div *ngIf="!translationsHaveLoaded">
+    <p class="translations-status-text">Please wait. Fetching translations...</p>
+  </div>
+</div>
+<div class="modal-footer">
+  <button type="button" (click)="cancel()" class="btn modify-translations-cancel-button">Cancel</button>
+  <button type="button" (click)="confirm()" class="btn modify-translations-done-button e2e-test-modify-translations-done-button">Done</button>
+</div>

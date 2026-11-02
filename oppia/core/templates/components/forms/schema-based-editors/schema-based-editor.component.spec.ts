@@ -1,0 +1,187 @@
+// Copyright 2022 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Unit tests for Schema Based Editor Component
+ */
+
+// @ts-nocheck
+
+import {EventEmitter, NO_ERRORS_SCHEMA} from '@angular/core';
+import {
+  ComponentFixture,
+  fakeAsync,
+  TestBed,
+  tick,
+  waitForAsync,
+} from '@angular/core/testing';
+import {FormControl, FormsModule} from '@angular/forms';
+import {SchemaBasedEditorComponent} from './schema-based-editor.component';
+
+describe('Schema based editor component', function () {
+  let component: SchemaBasedEditorComponent;
+  let fixture: ComponentFixture<SchemaBasedEditorComponent>;
+
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [FormsModule],
+      declarations: [SchemaBasedEditorComponent],
+      schemas: [NO_ERRORS_SCHEMA],
+    }).compileComponents();
+  }));
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(SchemaBasedEditorComponent);
+    component = fixture.componentInstance;
+
+    component.schema = {
+      type: 'float',
+      choices: [12, 23],
+    };
+
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture.destroy();
+  });
+
+  it('should set component properties on initialization', fakeAsync(() => {
+    const onChangeSpy = jasmine.createSpy('onChange');
+    component.registerOnChange(onChangeSpy);
+    component.registerOnTouched(() => {});
+
+    expect(component).toBeDefined();
+    expect(component.validate(new FormControl(1))).toEqual(null);
+
+    component.localValue = 19;
+
+    expect(onChangeSpy).toHaveBeenCalledWith(19);
+  }));
+
+  it('should write value', () => {
+    component.localValue = null;
+    component.writeValue(null);
+
+    expect(component.localValue).toEqual(null);
+
+    component.writeValue(10);
+    expect(component.localValue).toEqual(10);
+  });
+
+  it('should trigger validator change on form status change', fakeAsync(() => {
+    const mockEmitter = new EventEmitter<void>();
+    spyOnProperty(component.form, 'statusChanges').and.returnValue(mockEmitter);
+
+    const validatorSpy = jasmine.createSpy('validatorSpy');
+    component.registerOnValidatorChange(validatorSpy);
+
+    component.ngAfterViewInit();
+    tick();
+
+    mockEmitter.emit();
+    tick();
+
+    expect(validatorSpy).toHaveBeenCalled();
+  }));
+
+  it('should call onTouched when onTouch is called', () => {
+    const onTouchedSpy = jasmine.createSpy('onTouched');
+    component.registerOnTouched(onTouchedSpy);
+
+    component.onTouch();
+
+    expect(onTouchedSpy).toHaveBeenCalled();
+  });
+
+  it('should call onTouch and emit blur event when onInputBlur is called', () => {
+    const touchSpy = spyOn(component, 'onTouch');
+    spyOn(component.inputBlur, 'emit');
+
+    component.onInputBlur();
+
+    expect(touchSpy).toHaveBeenCalled();
+    expect(component.inputBlur.emit).toHaveBeenCalled();
+  });
+
+  it('should emit focus event when onInputFocus is called', () => {
+    spyOn(component.inputFocus, 'emit');
+
+    component.onInputFocus();
+
+    expect(component.inputFocus.emit).toHaveBeenCalled();
+  });
+
+  it('should set disabled state when setDisabledState is called', () => {
+    if (component.setDisabledState) {
+      component.setDisabledState(true);
+      expect(component.disabled).toBe(true);
+
+      component.setDisabledState(false);
+      expect(component.disabled).toBe(false);
+    }
+  });
+
+  it('should return null when validate is called without form', () => {
+    component.form = null as unknown as typeof component.form;
+    const result = component.validate(new FormControl(1));
+    expect(result).toBeNull();
+  });
+
+  it('should return schema metadata getters when present', () => {
+    component.schema = {
+      type: 'list',
+      items: 'unicode',
+      len: 2,
+      properties: [
+        {
+          name: 'prop',
+          schema: {
+            type: 'unicode',
+          },
+        },
+      ],
+      ui_config: {
+        rows: 1,
+      },
+      validators: [],
+    } as unknown as typeof component.schema;
+
+    expect(component.schemaItems).toBe('unicode');
+    expect(component.schemaLen).toBe(2);
+    expect(component.schemaProperties).toEqual([
+      {
+        name: 'prop',
+        schema: {
+          type: 'unicode',
+        },
+      },
+    ]);
+    expect(component.schemaUiConfig).toEqual({
+      rows: 1,
+    });
+    expect(component.schemaValidators).toEqual([]);
+  });
+
+  it('should not subscribe when form has no statusChanges', () => {
+    component.form = {
+      statusChanges: undefined,
+      valid: true,
+    } as unknown as typeof component.form;
+
+    component.ngAfterViewInit();
+
+    expect(component.validate(new FormControl(1))).toBeNull();
+  });
+});

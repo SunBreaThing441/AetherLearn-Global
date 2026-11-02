@@ -1,0 +1,32 @@
+<div #dropdown class="oppia-review-translation-language-selector-container e2e-test-language-selector">
+
+  <div class="oppia-review-translation-language-selector-inner-container" (click)="toggleDropdown()" (keydown.enter)="toggleDropdown()" tabindex="0">
+    <span class="oppia-language-selector-label e2e-test-language-selector-selected">
+      {{languageSelection}}
+    </span>
+    <span class="fas fa-caret-down oppia-review-translation-language-selector-inner-container-arrow" [ngStyle]="{ 'transform': dropdownShown ? 'scaleY(-1)' : 'scaleY(1)' }">
+    </span>
+  </div>
+
+  <div *ngIf="dropdownShown" class="oppia-review-translation-language-selector-dropdown-container e2e-test-language-selector-dropdown">
+    <input #filterDiv type="text" class="oppia-review-translation-language-selector-filter-input"
+           placeholder="Language"
+           [(ngModel)]="optionsFilter"
+           (input)="filterOptions()"
+           autofocus>
+    <div class="material-icons oppia-review-translation-language-selector-inner-container-arrow" (click)="toggleDropdown()">
+      arrow_drop_down
+    </div>
+
+    <div class="oppia-review-translation-language-selector-dropdown-options-container">
+      <div class="oppia-review-translation-language-selector-dropdown-option e2e-test-language-selector-option"
+           *ngFor="let option of filteredOptions"
+           (click)="selectOption(option.id)"
+           (keydown.enter)="selectOption(option.id)"
+           tabindex="0"
+           [ngClass]="{'oppia-review-translation-language-selector-dropdown-option-selected' : option.id === activeLanguageCode}">
+        {{option.description}}
+      </div>
+    </div>
+  </div>
+</div>

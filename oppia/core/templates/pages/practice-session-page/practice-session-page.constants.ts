@@ -1,0 +1,55 @@
+// Copyright 2019 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Constants for the practice session.
+ */
+
+export const PracticeSessionPageConstants = {
+  TOTAL_QUESTIONS: 20,
+
+  PRACTICE_SESSIONS_DATA_URL:
+    '/practice_session/data/<classroom_url_fragment>/' +
+    '<topic_url_fragment>?selected_subtopic_ids=' +
+    '<stringified_subtopic_ids>',
+
+  LESSON_PRACTICE_DATA_URL:
+    '/practice_session/data/<classroom_url_fragment>/' +
+    '<topic_url_fragment>/<node_id>',
+
+  ARC_PRACTICE_DATA_URL:
+    '/practice_session/data/<classroom_url_fragment>/' +
+    '<topic_url_fragment>/arc/<arc_id>',
+
+  MASTERY_CHALLENGE_DATA_URL:
+    '/practice_session/data/<classroom_url_fragment>/' + '<topic_url_fragment>',
+
+  TOPIC_VIEWER_PAGE: '/learn/<classroom_url_fragment>/<topic_url_fragment>',
+
+  PRACTICE_SESSIONS_URL:
+    '/learn/<classroom_url_fragment>/<topic_url_fragment>/practice/' +
+    'session?selected_subtopic_ids=<stringified_subtopic_ids>',
+
+  LESSON_PRACTICE_URL:
+    '/learn/<classroom_url_fragment>/<topic_url_fragment>/practice/' +
+    '<node_id>',
+
+  END_OF_ARC_URL:
+    '/learn/<classroom_url_fragment>/<topic_url_fragment>/test/arc/' +
+    '<arc_id>',
+
+  MASTERY_CHALLENGE_URL:
+    '/learn/<classroom_url_fragment>/<topic_url_fragment>/' +
+    'mastery-challenge',
+} as const;

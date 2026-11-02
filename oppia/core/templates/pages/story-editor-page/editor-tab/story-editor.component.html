@@ -1,0 +1,580 @@
+<div class="e2e-test-story-editor">
+  <div *ngIf="publishedChaptersDropErrorIsShown"
+       class="oppia-error-message-container e2e-test-published-chapters-drop-error">
+       The positions of published chapters cannot be changed.
+  </div>
+  <p class="oppia-mobile-back-to-parent e2e-test-mobile-back-to-topic" (click)="returnToTopicEditorPage()">
+    <i class="fa fa-angle-left"></i>
+    <span>Back to Topic</span>
+  </p>
+  <div class="topic-story-name">
+    <span class="topic-name e2e-test-return-to-topic-button" (click)="returnToTopicEditorPage()">
+      {{ getTopicName() }} /
+    </span>
+    <span class="chapter-name">
+      {{ story.getTitle() }}
+    </span>
+  </div>
+  <div role="form" class="form-horizontal">
+    <div class="parent-container">
+      <div class="content-container">
+        <mat-card class="oppia-page-card oppia-long-text content-card story-content-card oppia-mobile-collapsible-card">
+          <div class="chapter-list-card-header oppia-mobile-collapsible-card-header" (click)="toggleStoryEditorCard()">
+            <h3 class="story-card-header">Story Card</h3>
+            <i class="fa fa-caret-down"
+               *ngIf="!mainStoryCardIsShown"
+               aria-hidden="true">
+            </i>
+            <i class="fa fa-caret-up"
+               *ngIf="mainStoryCardIsShown"
+               aria-hidden="true">
+            </i>
+          </div>
+          <div class="oppia-mobile-collapsible-card-content" *ngIf="mainStoryCardIsShown">
+            <div class="story-content">
+              <div class="story-title">
+                <label for="storyTitle" class="form-heading">Title*</label>
+                <input id="storyTitle" type="text" class="form-control e2e-test-story-title-field"
+                       [(ngModel)]="editableTitle" (blur)="updateStoryTitle(editableTitle)"
+                       [ngModelOptions]="{standalone: true}"
+                       placeholder="Enter a title for the story." maxlength="{{ MAX_CHARS_IN_STORY_TITLE }}" ng-trim="false">
+                <span class="oppia-input-box-subtitle">
+                  <em>
+                    Story title should be at most {{ MAX_CHARS_IN_STORY_TITLE }} characters.
+                  </em>
+                </span>
+              </div>
+              <div class="story-description" [ngClass]="{'has-error': editableDescriptionIsEmpty && storyDescriptionChanged}">
+                <label for="storyDescription" class="form-heading">Description*</label>
+                <textarea type="text" class="form-control e2e-test-story-description-field"
+                          maxlength="{{ MAX_CHARS_IN_STORY_DESCRIPTION }}"
+                          [(ngModel)]="editableDescription"
+                          [ngModelOptions]="{standalone: true}"
+                          (change)="updateStoryDescriptionStatus(editableDescription)"
+                          (blur)="updateStoryDescription(editableDescription)"
+                          placeholder="Enter the description of the story">
+                </textarea>
+                <span class="oppia-input-box-subtitle">
+                  <em>
+                    Story description should be at most
+                    {{ MAX_CHARS_IN_STORY_DESCRIPTION }} characters.
+                  </em>
+                </span>
+                <span *ngIf="editableDescriptionIsEmpty && storyDescriptionChanged" class="form-text story-contain-text">
+                  What does this story contain?
+                </span>
+              </div>
+              <div class="story-meta-tag-content" [ngClass]="{'has-error': editableMetaTagContent.length === 0}">
+                <label for="storyMetaTagContent" class="form-heading e2e-test-story-meta-tag-content-label">Meta Tag Content</label>
+                <textarea type="text" class="form-control e2e-test-story-meta-tag-content-field oppia-autofocus"
+                          [(ngModel)]="editableMetaTagContent"
+                          [ngModelOptions]="{standalone: true}"
+                          (blur)="updateStoryMetaTagContent(editableMetaTagContent)"
+                          placeholder="Enter the meta tag content for the story"
+                          maxlength="{{ MAX_CHARS_IN_META_TAG_CONTENT }}"
+                          [oppiaFocusOn]="metaTagInputField">
+                </textarea>
+              </div>
+              <url-fragment-editor-component label="Url Fragment"
+                                             placeholder="Enter the URL fragment for the story."
+                                             maxLength="{{ MAX_CHARS_IN_STORY_URL_FRAGMENT }}"
+                                             fragmentType="story"
+                                             [generatedUrlPrefix]="generatedUrlPrefix"
+                                             [fragmentIsDuplicate]="storyUrlFragmentExists"
+                                             [disabled]="false"
+                                             [(urlFragment)]="editableUrlFragment"
+                                             (urlFragmentChange)="onStoryEditorUrlFragmentChange($event)"
+                                             (blur)="updateStoryUrlFragment(editableUrlFragment)">
+              </url-fragment-editor-component>
+
+              <div class="story-thumbnail e2e-test-story-thumbnail">
+                <label class="form-heading">Thumbnail Image*</label>
+                <oppia-thumbnail-uploader [filename]="story?.getThumbnailFilename()"
+                                          [useLocalStorage]="false"
+                                          (updateFilename)="updateStoryThumbnailFilename($event)"
+                                          [bgColor]="story?.getThumbnailBgColor()"
+                                          (updateBgColor)="updateStoryThumbnailBgColor($event)"
+                                          [allowedBgColors]="allowedBgColors"
+                                          [aspectRatio]="'4:3'"
+                                          [previewTitle]="editableTitle"
+                                          [previewDescription]="editableDescription">
+                </oppia-thumbnail-uploader>
+              </div>
+              <div class="story-notes">
+                <div class="oppia-editor-card-body">
+                  <label class="form-heading">Notes</label>
+                  <div *ngIf="!notesEditorIsShown">
+                    <div (click)="openNotesEditor()" class="oppia-editable-section e2e-test-open-story-notes-editor-button">
+                      <i class="fas fa-pen oppia-editor-edit-icon float-end story-editor-notes-edit-icon"
+                         title="Edit Story Notes">
+                      </i>
+                      <div class="oppia-state-content-display oppia-transition-200 oppia-prevent-selection"
+                           title="Story notes">
+                        <span class="oppia-placeholder" [hidden]="!(editableNotes === '')">
+                            Add notes about the story to help other contributors.
+                        </span>
+                        <oppia-rte-output-display class="story-notes e2e-test-story-notes" [rteString]="editableNotes">
+                        </oppia-rte-output-display>
+                      </div>
+                      <!-- This is a dummy div created to mask the contents when the user hovers over the content. -->
+                      <div class="oppia-editable-section-mask">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div *ngIf="notesEditorIsShown" class="e2e-test-story-notes-rte">
+                    <schema-based-editor [schema]="NOTES_SCHEMA" [(ngModel)]="editableNotes">
+                    </schema-based-editor>
+                    <div *ngIf="editableNotes.length > 4000" class="story-length-validation-error">
+                      The notes length is too long. Please make it under 4000 characters.
+                    </div>
+                    <div class="editor-buttons">
+                      <button type="button"
+                              class="btn btn-success oppia-save-state-item-button float-end e2e-test-save-story-notes-button"
+                              [disabled]="!editableNotes || editableNotes.length > 4000"
+                              (click)="updateNotes(editableNotes)">
+                        Save
+                      </button>
+                      <button type="button" class="btn btn-secondary float-end" (click)="closeNotesEditor()">Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="story.getThumbnailFilename() && mainStoryCardIsShown">
+            <div *ngIf="!storyPreviewCardIsShown" >
+              <button class="btn btn-secondary show-story-preview-button" (click)="togglePreview()">
+                Expand Preview
+                <i class="fa fa-angle-down"></i>
+              </button>
+            </div>
+            <div *ngIf="storyPreviewCardIsShown">
+              <button class="btn btn-secondary show-story-preview-button" (click)="togglePreview()">
+                Collapse Preview
+                <i class="fa fa-angle-up"></i>
+              </button>
+            </div>
+            <div *ngIf="storyPreviewCardIsShown">
+              <oppia-preview-thumbnail [name]="editableTitle"
+                                       [aspectRatio]="'16:9'"
+                                       [description]="editableDescription"
+                                       [filename]="story.getThumbnailFilename()"
+                                       [thumbnailBgColor]="story.getThumbnailBgColor()"
+                                       bgColor="#2F6687">
+              </oppia-preview-thumbnail>
+            </div>
+          </div>
+        </mat-card>
+      </div>
+
+      <div class="chapter-list-container" *ngIf="!isSerialChapterFeatureFlagEnabled()">
+        <mat-card class="oppia-page-card oppia-long-text content-card oppia-mobile-collapsible-card">
+          <div class="story-node-editor">
+            <div class="chapter-list-card-header oppia-mobile-collapsible-card-header e2e-test-mobile-add-chapter"
+                 (click)="toggleChapterLists()">
+              <span>Chapters</span>
+              <i class="fa fa-caret-down"
+                 *ngIf="!chaptersListIsShown"
+                 aria-hidden="true">
+              </i>
+              <i class="fa fa-caret-up"
+                 *ngIf="chaptersListIsShown"
+                 aria-hidden="true">
+              </i>
+            </div>
+          </div>
+          <div *ngIf="chaptersListIsShown" class="oppia-mobile-collapsible-card-content">
+            <div>
+              <button (click)="createNode()" class="btn add-chapter-btn e2e-test-add-chapter-button">
+                + ADD CHAPTER
+              </button>
+              <div *ngIf="!linearNodesList.length">
+                <p class="no-chapters-message">
+                  This story has no chapters.
+                </p>
+              </div>
+              <div *ngIf="linearNodesList.length">
+                <div class="chapter-list-card-heading">
+                  <span>Name</span>
+                </div>
+                <div class="story-nodes-container" cdkDropList (cdkDropListDropped)="drop($event)">
+                  <div *ngFor="let node of linearNodesList;index as idx"
+                       cdkDrag>
+                    <div *ngIf="isStoryEditorArcsFeatureFlagEnabled() && (idx === 0 || !isSameArc(idx))"
+                         class="inline-arc-boundary-row">
+                      <div class="arc-boundary-header"
+                           [style.background-color]="getArcColorForNode(node.getId()).headerBg"
+                           [style.border-color]="getArcColorForNode(node.getId()).headerBorder">
+                        <div class="arc-boundary-info">
+                          <div class="arc-boundary-title-row">
+                            <span class="arc-boundary-flag-badge"
+                                  [style.background-color]="getArcColorForNode(node.getId()).iconBg"
+                                  aria-hidden="true">
+                              <img src="/assets/images/icons/menu-book.svg"
+                                   alt=""
+                                   class="arc-boundary-flag-badge-img">
+                            </span>
+                            <span class="arc-boundary-title">
+                              {{ getArcForNode(node.getId()).getTitle() }}
+                            </span>
+                          </div>
+                          <span class="arc-boundary-description" *ngIf="getArcForNode(node.getId()).getDescription()">
+                            {{ getArcForNode(node.getId()).getDescription() }}
+                          </span>
+                          <span class="arc-boundary-chapter-count">
+                            {{ getArcForNode(node.getId()).getNodeIds().length }} chapters
+                          </span>
+                        </div>
+                        <div class="arc-boundary-actions">
+                          <button type="button" class="btn btn-sm arc-edit-button"
+                                  (click)="onEditArcClick(node.getId());$event.stopPropagation()">
+                            <i class="fas fa-pen" aria-hidden="true"></i>
+                            Edit Module
+                          </button>
+                          <button type="button" class="btn btn-sm arc-remove-button"
+                                  *ngIf="!isFirstArc(node.getId())"
+                                  (click)="onRemoveArcClick(node.getId());$event.stopPropagation()">
+                            <i class="far fa-trash-alt" aria-hidden="true"></i>
+                            Remove Module Boundary
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div *ngIf="isStoryEditorArcsFeatureFlagEnabled() && idx > 0 && isSameArc(idx)"
+                         class="inline-split-line-row">
+                      <div class="split-line-container">
+                        <div class="split-line"></div>
+                        <button type="button" class="btn btn-sm split-into-arc-button"
+                                (click)="splitIntoArc(idx);$event.stopPropagation()">
+                          <i class="fas fa-cut"></i>
+                          Split Into Module
+                        </button>
+                        <div class="split-line"></div>
+                      </div>
+                    </div>
+                    <div class="story-editor-node"
+                      [ngClass]="{
+                        'selected-node': (node.getId() === idOfNodeToEdit),
+                        'story-editor-node--no-bottom-border': isStoryEditorArcsFeatureFlagEnabled() && idx < linearNodesList.length - 1 && isSameArc(idx + 1)
+                      }"
+                         (click)="navigateToChapterWithId(node.getId(), idx)">
+                      <div class="story-editor-node-title">
+                        <span> {{ idx+1 }}. </span>
+                        <span class="e2e-test-chapter-title">{{ node.getTitle() }}</span>
+                      </div>
+                      <div class="edit-options-container">
+                        <i class="fa fa-ellipsis-v chapter-edit-toggle-button e2e-test-edit-options"
+                           (click)="toggleChapterEditOptions(idx);$event.stopPropagation()"
+                           aria-label="Chapter edit">
+                        </i>
+                      </div>
+                      <div class="chapter-option-box"
+                           *ngIf="selectedChapterIndex === idx"
+                           (mouseleave)="toggleChapterEditOptions(-1)"
+                           (click)="toggleChapterEditOptions(-1);$event.stopPropagation()">
+                        <div class="chapter-edit-option e2e-test-delete-chapter-button"
+                             (click)="deleteNode(node.getId())">
+                          <i class="fa fa-trash"></i>
+                          <span>Delete</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-card>
+      </div>
+
+      <div class="chapter-list-container"
+           *ngIf="isSerialChapterFeatureFlagEnabled() && !isStoryEditorArcsFeatureFlagEnabled()">
+        <mat-card class="oppia-page-card oppia-long-text content-card oppia-mobile-collapsible-card chapter-control-container">
+          <div class="story-node-editor-container">
+            <div class="chapter-list-card-header oppia-mobile-collapsible-card-header e2e-test-mobile-add-chapter"
+                 (click)="toggleChapterLists()">
+              <span>Chapter Control</span>
+              <i class="fa fa-caret-down" *ngIf="!chaptersListIsShown" aria-hidden="true"></i>
+              <i class="fa fa-caret-up"   *ngIf="chaptersListIsShown"  aria-hidden="true"></i>
+            </div>
+          </div>
+          <div *ngIf="chaptersListIsShown" class="oppia-mobile-collapsible-card-content chapter-control-panel">
+            <div>
+              <div class="chapter-control-bar" *ngIf="linearNodesList.length">
+                <div class="publish-upto-chapter-menu">
+                  <span class="publish-upto-chapter-label">Publish up to Chapter ...</span>
+                  <select [(ngModel)]="selectedChapterIndexInPublishUptoDropdown"
+                          (ngModelChange)="updatePublishUptoChapterSelection(selectedChapterIndexInPublishUptoDropdown)"
+                          class="publish-upto-chapter-dropdown e2e-test-publish-up-to-chapter-dropdown"
+                          title="Publish up to chapter selector">
+                    <option [value]="-1">None</option>
+                    <option *ngFor="let node of linearNodesList;index as idx"
+                            [disabled]="!chapterIsPublishable[idx]"
+                            [value]="idx">{{ idx+1 }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div *ngIf="!linearNodesList.length">
+                <p class="no-chapters-message">This story has no chapters.</p>
+              </div>
+              <div *ngIf="linearNodesList.length">
+                <div class="story-nodes-container">
+                  <table cdkDropList
+                         [cdkDropListData]="linearNodesList"
+                         (cdkDropListDropped)="drop($event)">
+                    <tr class="chapter-list-heading">
+                      <th class="drag-handler-header"></th>
+                      <th></th>
+                      <th>Chapter Name</th>
+                      <th>Status</th>
+                      <th>Last Modified or Published</th>
+                      <th>Planned Publication Date</th>
+                    </tr>
+                    <ng-container *ngFor="let node of linearNodesList;index as idx">
+                      <tr class="story-node"
+                          [ngClass]="{'published-node': node.getStatus() === 'Published',
+                                     'ready-to-publish-node': node.getStatus() === 'Ready To Publish',
+                                     'draft-node': node.getStatus() === 'Draft'}"
+                          (click)="navigateToChapterWithId(node.getId(), idx)"
+                          cdkDrag
+                          [cdkDragDisabled]="isDragAndDropDisabled(node)"
+                          [cdkDragData]="node">
+                        <td class="drag-handler" (click)="$event.stopPropagation()">
+                          <span class="fas fa-grip-vertical draggable-icon-indicator"
+                                *ngIf="node.getStatus() !== 'Published'">
+                          </span>
+                        </td>
+                        <td class="chapter-index">{{ idx+1 }}</td>
+                        <td class="e2e-test-chapter-title chapter-title">{{ node.getTitle() }}</td>
+                        <td class="chapter-status e2e-test-chapter-status">{{ node.getStatus() }}</td>
+                        <td class="chapter-last-modified">
+                          {{ dateTimeFormatService.getLocaleDateTimeHourString(node.getLastModifiedMsecs()) }}
+                          <div *ngIf="node.getStatus() === 'Published'">(published)</div>
+                          <div *ngIf="node.getStatus() === 'Ready To Publish'">(draft modified)</div>
+                          <div *ngIf="node.getStatus() === 'Draft'">(draft added)</div>
+                        </td>
+                        <td class="chapter-planned-publication-date">
+                          {{ node.getPlannedPublicationDateMsecs() != null
+                              ? getMediumStyleLocaleDateString(node.getPlannedPublicationDateMsecs())
+                              : '-' }}
+                        </td>
+                        <td class="edit-options-container">
+                          <i class="fa fa-ellipsis-v chapter-edit-toggle-button e2e-test-edit-options"
+                             (click)="toggleChapterEditOptions(idx);$event.stopPropagation()"
+                             aria-label="Chapter edit">
+                          </i>
+                          <div class="chapter-option-box"
+                               *ngIf="selectedChapterIndex === idx"
+                               (mouseleave)="toggleChapterEditOptions(-1)"
+                               (click)="toggleChapterEditOptions(-1);$event.stopPropagation()">
+                            <div class="chapter-edit-option e2e-test-move-chapter-up-button"
+                                 *ngIf="idx !== 0 && linearNodesList[idx-1].getStatus() !== 'Published' && linearNodesList[idx].getStatus() !== 'Published'"
+                                 (click)="moveNodeUpInStory(idx);$event.stopPropagation()">
+                              <span>Move Up</span>
+                            </div>
+                            <div class="chapter-edit-option e2e-test-move-chapter-down-button"
+                                 *ngIf="idx !== linearNodesList.length-1 && node.getStatus() !== 'Published'"
+                                 (click)="moveNodeDownInStory(idx);$event.stopPropagation()">
+                              <span>Move Down</span>
+                            </div>
+                            <div class="chapter-edit-option e2e-test-edit-chapter-button"
+                                 (click)="navigateToChapterWithId(node.getId(), idx)">
+                              <span>Edit</span>
+                            </div>
+                            <div class="chapter-edit-option e2e-test-delete-chapter-button"
+                                 (click)="deleteNode(node.getId());$event.stopPropagation()">
+                              <span>Delete</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </ng-container>
+                  </table>
+                </div>
+              </div>
+              <button (click)="createNode()" class="btn add-chapter-button e2e-test-add-chapter-button">
+                + ADD CHAPTER
+              </button>
+            </div>
+          </div>
+        </mat-card>
+      </div>
+
+      <div class="chapter-list-container arc-mode-container"
+           *ngIf="isSerialChapterFeatureFlagEnabled() && isStoryEditorArcsFeatureFlagEnabled()">
+        <mat-card class="oppia-page-card chapter-control-container arc-mode-card">
+          <div class="arc-mode-card-header oppia-mobile-collapsible-card-header e2e-test-mobile-add-chapter"
+               (click)="toggleChapterLists()">
+            <span class="arc-mode-card-heading-text">Chapters</span>
+            <i class="fa fa-caret-down" *ngIf="!chaptersListIsShown" aria-hidden="true"></i>
+            <i class="fa fa-caret-up"   *ngIf="chaptersListIsShown"  aria-hidden="true"></i>
+          </div>
+
+          <div *ngIf="chaptersListIsShown" class="arc-mode-card-body">
+            <div class="arc-mode-publish-bar" *ngIf="linearNodesList.length">
+              <label class="arc-mode-publish-label" for="arc-publish-upto">Publish up to Chapter ...</label>
+              <select id="arc-publish-upto"
+                      [(ngModel)]="selectedChapterIndexInPublishUptoDropdown"
+                      (ngModelChange)="updatePublishUptoChapterSelection(selectedChapterIndexInPublishUptoDropdown)"
+                      class="arc-mode-publish-select e2e-test-publish-up-to-chapter-dropdown"
+                      title="Publish up to chapter selector">
+                <option [value]="-1">None</option>
+                <option *ngFor="let node of linearNodesList;index as idx"
+                        [disabled]="!chapterIsPublishable[idx]"
+                        [value]="idx">{{ idx+1 }}
+                </option>
+              </select>
+            </div>
+
+            <p *ngIf="!linearNodesList.length" class="no-chapters-message">
+              This story has no chapters.
+            </p>
+
+            <div *ngIf="linearNodesList.length" class="arc-table-wrapper">
+              <table class="arc-chapter-table">
+                <thead>
+                  <tr class="arc-table-heading">
+                    <th class="col-drag"></th>
+                    <th class="col-num">#</th>
+                    <th class="col-name">Chapter Name</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-modified">Last Modified or Published</th>
+                    <th class="col-date">Planned Publication Date</th>
+                    <th class="col-actions"></th>
+                  </tr>
+                </thead>
+                <tbody cdkDropList
+                       [cdkDropListData]="linearNodesList"
+                       (cdkDropListDropped)="drop($event)">
+                  <ng-container *ngFor="let node of linearNodesList;index as idx">
+
+                    <tr *ngIf="idx === 0 || !isSameArc(idx)" class="arc-header-row">
+                      <td colspan="7" class="arc-header-cell">
+                        <div class="arc-header-card"
+                             [style.background-color]="getArcColorForNode(node.getId()).headerBg"
+                             [style.border-color]="getArcColorForNode(node.getId()).headerBorder">
+                          <div class="arc-header-left">
+                            <span class="arc-flag-badge"
+                                  [style.background-color]="getArcColorForNode(node.getId()).iconBg">
+                              <img src="/assets/images/icons/menu-book.svg"
+                                   alt=""
+                                   class="arc-flag-badge-img">
+                            </span>
+                            <div class="arc-header-text">
+                              <span class="arc-header-title">
+                                {{ getArcForNode(node.getId()).getTitle() }}
+                              </span>
+                              <span class="arc-header-description"
+                                    *ngIf="getArcForNode(node.getId()).getDescription()">
+                                {{ getArcForNode(node.getId()).getDescription() }}
+                              </span>
+                              <span class="arc-header-chapter-count">
+                                {{ getArcForNode(node.getId()).getNodeIds().length }} chapters
+                              </span>
+                            </div>
+                          </div>
+                          <div class="arc-header-actions">
+                            <button type="button" class="arc-action-btn arc-edit-btn"
+                                    (click)="onEditArcClick(node.getId());$event.stopPropagation()">
+                              <i class="fas fa-pen" aria-hidden="true"></i> Edit Module
+                            </button>
+                            <button type="button" class="arc-action-btn arc-remove-btn"
+                                    *ngIf="!isFirstArc(node.getId())"
+                                    (click)="onRemoveArcClick(node.getId());$event.stopPropagation()">
+                              <i class="far fa-trash-alt" aria-hidden="true"></i> Remove Module Boundary
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr *ngIf="idx > 0 && isSameArc(idx)" class="arc-split-row">
+                      <td colspan="7" class="arc-split-cell">
+                        <div class="arc-split-line-container">
+                          <div class="arc-split-line"></div>
+                          <button type="button" class="arc-split-btn"
+                                  (click)="splitIntoArc(idx);$event.stopPropagation()">
+                            <i class="fas fa-cut" aria-hidden="true"></i> Split Into Module
+                          </button>
+                          <div class="arc-split-line"></div>
+                        </div>
+                      </td>
+                    </tr>
+
+                    <tr class="arc-chapter-row"
+                        [ngClass]="{
+                          'arc-chapter-row--before-split': idx < linearNodesList.length - 1 && isSameArc(idx + 1)
+                        }"
+                        [style.border-left-color]="getArcColorForNode(node.getId()).rowAccent"
+                        (click)="navigateToChapterWithId(node.getId(), idx)"
+                        cdkDrag
+                        [cdkDragDisabled]="isDragAndDropDisabled(node)"
+                        [cdkDragData]="node">
+                      <td class="col-drag arc-drag-handle" (click)="$event.stopPropagation()">
+                        <span class="fas fa-grip-vertical draggable-icon-indicator"
+                              *ngIf="node.getStatus() !== 'Published'">
+                        </span>
+                      </td>
+                      <td class="col-num arc-chapter-num">{{ idx + 1 }}</td>
+                      <td class="col-name arc-chapter-name e2e-test-chapter-title">{{ node.getTitle() }}</td>
+                      <td class="col-status arc-chapter-status e2e-test-chapter-status">
+                        {{ node.getStatus() }}
+                      </td>
+                      <td class="col-modified arc-chapter-modified">
+                        {{ dateTimeFormatService.getLocaleDateTimeHourString(node.getLastModifiedMsecs()) }}
+                        <div class="arc-modified-sub" *ngIf="node.getStatus() === 'Published'">(published)</div>
+                        <div class="arc-modified-sub" *ngIf="node.getStatus() === 'Ready To Publish'">(draft modified)</div>
+                        <div class="arc-modified-sub" *ngIf="node.getStatus() === 'Draft'">(draft added)</div>
+                      </td>
+                      <td class="col-date arc-chapter-date">
+                        {{ node.getPlannedPublicationDateMsecs() != null
+                            ? getMediumStyleLocaleDateString(node.getPlannedPublicationDateMsecs())
+                            : '-' }}
+                      </td>
+                      <td class="col-actions" (click)="$event.stopPropagation()">
+                        <i class="fa fa-ellipsis-v chapter-edit-toggle-button e2e-test-edit-options"
+                           (click)="toggleChapterEditOptions(idx);$event.stopPropagation()"
+                           aria-label="Chapter edit">
+                        </i>
+                        <div class="chapter-option-box"
+                             *ngIf="selectedChapterIndex === idx"
+                             (mouseleave)="toggleChapterEditOptions(-1)"
+                             (click)="toggleChapterEditOptions(-1);$event.stopPropagation()">
+                          <div class="chapter-edit-option e2e-test-move-chapter-up-button"
+                               *ngIf="idx !== 0 && linearNodesList[idx-1].getStatus() !== 'Published' && node.getStatus() !== 'Published'"
+                               (click)="moveNodeUpInStory(idx);$event.stopPropagation()">
+                            <span>Move Up</span>
+                          </div>
+                          <div class="chapter-edit-option e2e-test-move-chapter-down-button"
+                               *ngIf="idx !== linearNodesList.length-1 && node.getStatus() !== 'Published'"
+                               (click)="moveNodeDownInStory(idx);$event.stopPropagation()">
+                            <span>Move Down</span>
+                          </div>
+                          <div class="chapter-edit-option e2e-test-edit-chapter-button"
+                               (click)="navigateToChapterWithId(node.getId(), idx)">
+                            <span>Edit</span>
+                          </div>
+                          <div class="chapter-edit-option e2e-test-delete-chapter-button"
+                               (click)="deleteNode(node.getId());$event.stopPropagation()">
+                            <span>Delete</span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+
+                  </ng-container>
+                </tbody>
+              </table>
+            </div>
+
+            <button (click)="createNode()" class="btn arc-add-chapter-btn e2e-test-add-chapter-button">
+              + ADD CHAPTER
+            </button>
+          </div>
+        </mat-card>
+      </div>
+    </div>
+  </div>
+</div>

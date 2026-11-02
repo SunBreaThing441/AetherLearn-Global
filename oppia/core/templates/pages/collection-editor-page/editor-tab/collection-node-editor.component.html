@@ -1,0 +1,27 @@
+<mat-card class="collection-editor-node">
+  <div class="collection-editor-node-title">
+    <a [href]="hrefUrl"
+       target="_blank"
+       rel="noopener">
+      {{ collectionNode.getExplorationTitle() }}
+    </a>
+  </div>
+  <span class="collection-editor-delete-node e2e-test-editor-delete-node">
+    <span (click)="deleteNode()"
+          aria-hidden="true">
+      <i class="fas fa-times"></i>
+    </span>
+  </span>
+  <span (click)="shiftNodeLeft()"
+        *ngIf="linearIndex > 0"
+        class="collection-editor-shift-left-arrow e2e-test-editor-shift-left"
+        aria-hidden="true">
+    <i class="fas fa-chevron-left"></i>
+  </span>
+  <span (click)="shiftNodeRight()"
+        *ngIf="linearIndex < collection?.getCollectionNodeCount() - 1"
+        class="collection-editor-shift-right-arrow e2e-test-editor-shift-right"
+        aria-hidden="true">
+    <i class="fas fa-chevron-right"></i>
+  </span>
+</mat-card>

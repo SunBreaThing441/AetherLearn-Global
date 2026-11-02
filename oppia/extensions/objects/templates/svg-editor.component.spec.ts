@@ -1,0 +1,1539 @@
+// Copyright 2020 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Unit tests for the svg editor.
+ */
+
+// @ts-nocheck
+
+import {fabric} from 'fabric';
+import {AppConstants} from 'app.constants';
+import {SvgEditorConstants} from './svg-editor.constants';
+import {PolyPoint, SvgEditorComponent} from './svg-editor.component';
+import {
+  ComponentFixture,
+  fakeAsync,
+  TestBed,
+  tick,
+  waitForAsync,
+} from '@angular/core/testing';
+import {NO_ERRORS_SCHEMA} from '@angular/core';
+import {AssetsBackendApiService} from 'services/assets-backend-api.service';
+import {ImageLocalStorageService} from 'services/image-local-storage.service';
+import {ImagePreloaderService} from 'pages/exploration-player-page/services/image-preloader.service';
+import {ImageUploadHelperService} from 'services/image-upload-helper.service';
+import {SvgSanitizerService} from 'services/svg-sanitizer.service';
+import {PageContextService} from 'services/page-context.service';
+import {AlertsService} from 'services/alerts.service';
+import {CsrfTokenService} from 'services/csrf-token.service';
+import {HttpClientTestingModule} from '@angular/common/http/testing';
+import {SvgFileFetcherBackendApiService} from './svg-file-fetcher-backend-api.service';
+import {of} from 'rxjs';
+
+var initializeMockDocument = (svgFilenameCtrl: SvgEditorComponent) => {
+  document
+    .querySelectorAll('.oppia-svg-editor-mock-doc')
+    .forEach(el => el.remove());
+  var mockDocument = document.createElement('div');
+  mockDocument.className = 'oppia-svg-editor-mock-doc';
+  var colors = ['stroke', 'fill', 'bg'];
+  for (var i = 0; i < 3; i++) {
+    var colorDiv = document.createElement('div');
+    colorDiv.setAttribute('id', colors[i] + '-color');
+    var topAlphaDiv = document.createElement('div');
+    topAlphaDiv.setAttribute('id', 'top-' + colors[i] + '-alpha');
+    var bottomAlphaDiv = document.createElement('div');
+    bottomAlphaDiv.setAttribute('id', 'bottom-' + colors[i] + '-alpha');
+    var pickerAlpha = document.createElement('div');
+    pickerAlpha.setAttribute('class', 'picker_alpha');
+    var pickerSlider = document.createElement('div');
+    pickerSlider.setAttribute('class', 'picker_selector');
+    pickerAlpha.append(pickerSlider);
+    colorDiv.appendChild(topAlphaDiv);
+    colorDiv.appendChild(bottomAlphaDiv);
+    mockDocument.appendChild(colorDiv);
+    mockDocument.appendChild(pickerAlpha);
+  }
+  var mockCanvas = document.createElement('canvas');
+
+  mockCanvas.setAttribute('id', svgFilenameCtrl.canvasID);
+  mockDocument.appendChild(mockCanvas);
+  document.getElementsByTagName('body')[0].appendChild(mockDocument);
+};
+
+describe('SvgEditor', () => {
+  var alertSpy: jasmine.Spy<(warning: string) => void>;
+  let svgFileFetcherBackendApiService: SvgFileFetcherBackendApiService;
+  var pageContextService: PageContextService;
+  var csrfService: CsrfTokenService;
+  let fixture: ComponentFixture<SvgEditorComponent>;
+  var component: SvgEditorComponent;
+  let svgSanitizerService: SvgSanitizerService;
+  const mockilss = {
+    getRawImageData: (filename: string) => {
+      return dataUrl;
+    },
+  };
+  // This sample SVG is generated using different tools present
+  // in the SVG editor.
+  var samplesvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/' +
+    '1999/xlink" version="1.1" width="494" height="368" viewBox="0 0 494 368' +
+    '"><desc>Created with Fabric.js 4.4.0</desc><defs></defs><rect x="0" y="' +
+    '0" width="100%" height="100%" fill="rgba(109,106,234,0.937)"/><g transf' +
+    'orm="matrix(1 0 0 1 324 91)"><rect style="stroke: rgb(0,0,0); stroke-wi' +
+    'dth: 3; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset' +
+    ': 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fi' +
+    'll-opacity: 0; fill-rule: nonzero; opacity: 1; vector-effect: non-scali' +
+    'ng-stroke" x="-30" y="-35" rx="0" ry="0" width="60" height="70"/></g><g' +
+    ' transform="matrix(1 0 0 1 321 209)"><circle style="stroke: rgb(0,0,0);' +
+    ' stroke-width: 3; stroke-dasharray: none; stroke-linecap: butt; stroke-' +
+    'dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(' +
+    '0,0,0); fill-opacity: 0; fill-rule: nonzero; opacity: 1; vector-effect:' +
+    ' non-scaling-stroke" cx="0" cy="0" r="30"/></g><g transform="matrix(1 0' +
+    ' 0 1 560 82)" style=""><text font-family="helvetica" font-size="18" fon' +
+    't-style="normal" font-weight="normal" style="stroke: none; stroke-width' +
+    ': 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0' +
+    '; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-' +
+    'rule: nonzero; opacity: 1; white-space: pre;"><tspan x="-100" y="-17.94' +
+    '" style="stroke: rgb(0,0,0); stroke-width: 2; fill: rgb(255,0,0); ">▇' +
+    '</tspan><tspan x="-86.16" y="-17.94" style="white-space: pre; "> - Data' +
+    ' name 1 - 10</tspan><tspan x="-100" y="5.65" style="stroke: rgb(0,0,0);' +
+    ' stroke-width: 2; fill: rgb(0,255,0); ">▇</tspan><tspan x="-86.16" y=' +
+    '"5.65" style="white-space: pre; "> - Data name 2 - 10</tspan><tspan x="' +
+    '-100" y="29.25" style="stroke: rgb(0,0,0); stroke-width: 2; fill: rgb(1' +
+    '90,65,65); ">▇</tspan><tspan x="-86.16" y="29.25" style="white-space:' +
+    ' pre; "> - Data name - 10</tspan></text></g><g transform="matrix(1 0 0 ' +
+    '1 113 222)"><g style=""><g transform="matrix(0.5 0.87 -0.87 0.5 0 0)"><' +
+    'g style=""><g transform="matrix(1 0 0 1 0 0)" id="group0"><path d="M 15' +
+    '.000000000000004 -25.980762113533157 A 30 30 0 0 1 15.000000000000004 2' +
+    '5.980762113533157" style="stroke: rgb(255,0,0); stroke-width: 1; stroke' +
+    '-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-li' +
+    'nejoin: miter; stroke-miterlimit: 4; fill: rgb(255,0,0); fill-rule: non' +
+    'zero; opacity: 1; vector-effect: non-scaling-stroke" id="group0"/></g><' +
+    'g transform="matrix(1 0 0 1 7.5 0)" id="group0"><polygon style="stroke:' +
+    ' rgb(255,0,0); stroke-width: 1; stroke-dasharray: none; stroke-linecap:' +
+    ' butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit:' +
+    ' 4; fill: rgb(255,0,0); fill-rule: nonzero; opacity: 1; vector-effect: ' +
+    'non-scaling-stroke" points="-7.5,0 7.5,25.98 7.5,-25.98 -7.5,0 " id="gr' +
+    'oup0"/></g></g></g><g transform="matrix(-1 0 0 -1 0 0)"><g style=""><g ' +
+    'transform="matrix(1 0 0 1 0 0)" id="group0"><path d="M 15.0000000000000' +
+    '04 -25.980762113533157 A 30 30 0 0 1 15.000000000000004 25.980762113533' +
+    '157" style="stroke: rgb(0,255,0); stroke-width: 1; stroke-dasharray: no' +
+    'ne; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter;' +
+    ' stroke-miterlimit: 4; fill: rgb(0,255,0); fill-rule: nonzero; opacity:' +
+    ' 1; vector-effect: non-scaling-stroke" id="group0"/></g><g transform="m' +
+    'atrix(1 0 0 1 7.5 0)" id="group0"><polygon style="stroke: rgb(0,255,0);' +
+    ' stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-' +
+    'dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(' +
+    '0,255,0); fill-rule: nonzero; opacity: 1; vector-effect: non-scaling-st' +
+    'roke" points="-7.5,0 7.5,25.98 7.5,-25.98 -7.5,0 " id="group0"/></g></g' +
+    '></g><g transform="matrix(0.5 -0.87 0.87 0.5 0 0)"><g style=""><g trans' +
+    'form="matrix(1 0 0 1 0 0)" id="group0"><path d="M 14.999999999999996 -2' +
+    '5.98076211353316 A 30 30 0 0 1 14.999999999999996 25.98076211353316" st' +
+    'yle="stroke: rgb(190,65,65); stroke-width: 1; stroke-dasharray: none; s' +
+    'troke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stro' +
+    'ke-miterlimit: 4; fill: rgb(190,65,65); fill-rule: nonzero; opacity: 1;' +
+    ' vector-effect: non-scaling-stroke" id="group0"/></g><g transform="matr' +
+    'ix(1 0 0 1 7.5 0)" id="group0"><polygon style="stroke: rgb(190,65,65); ' +
+    'stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-d' +
+    'ashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(1' +
+    '90,65,65); fill-rule: nonzero; opacity: 1; vector-effect: non-scaling-s' +
+    'troke" points="-7.5,0 7.5,25.98 7.5,-25.98 -7.5,0 " id="group0"/></g></' +
+    'g></g></g></g></svg>';
+  var dataUrl = 'data:image/svg+xml;utf8,' + samplesvg;
+
+  var mockAssetsBackendApiService = {
+    getImageUrlForPreview: (
+      contentType: string,
+      contentId: string,
+      filepath: string
+    ) => {
+      return dataUrl;
+    },
+  };
+
+  var mockImageUploadHelperService = {
+    convertImageDataToImageFile: (svgDataUri: string) => {
+      return new Blob();
+    },
+    generateImageFilename: (
+      height: number,
+      width: number,
+      extension: string
+    ) => {
+      return height + '_' + width + '.' + extension;
+    },
+  };
+
+  var mockSvgSanitizerService = {
+    getInvalidSvgTagsAndAttrsFromDataUri: (dataUri: string) => {
+      return {tags: [], attrs: []};
+    },
+    getTrustedSvgResourceUrl: (data: string) => {
+      return data;
+    },
+    convertBase64ToUnicodeString: (base64: string) => {
+      return decodeURIComponent(atob(base64));
+    },
+  };
+
+  var mockImagePreloaderService = {
+    getDimensionsOfImage: () => {
+      return {
+        width: 450,
+        height: 350,
+      };
+    },
+  };
+
+  class mockReaderObject {
+    result: string | null = null;
+    onload: (() => string) | null = null;
+    constructor() {
+      this.onload = () => {
+        return 'Fake onload executed';
+      };
+    }
+
+    readAsDataURL(file: Blob): string {
+      this.onload?.();
+      return 'The file is loaded';
+    }
+  }
+
+  class mockImageObject {
+    source: string | null = null;
+    onload: (() => string) | null = null;
+    constructor() {
+      this.onload = () => {
+        return 'Fake onload executed';
+      };
+    }
+
+    set src(url: string) {
+      this.onload?.();
+    }
+  }
+
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      declarations: [SvgEditorComponent],
+      schemas: [NO_ERRORS_SCHEMA],
+      providers: [
+        {
+          provide: AssetsBackendApiService,
+          useValue: mockAssetsBackendApiService,
+        },
+        {
+          provide: ImageLocalStorageService,
+          useValue: mockilss,
+        },
+        {
+          provide: ImagePreloaderService,
+          useValue: mockImagePreloaderService,
+        },
+        {
+          provide: ImageUploadHelperService,
+          useValue: mockImageUploadHelperService,
+        },
+        {
+          provide: SvgSanitizerService,
+          useValue: mockSvgSanitizerService,
+        },
+      ],
+    }).compileComponents();
+    svgSanitizerService = TestBed.inject(SvgSanitizerService);
+    pageContextService = TestBed.inject(PageContextService);
+    csrfService = TestBed.inject(CsrfTokenService);
+    const alertsService = TestBed.inject(AlertsService);
+
+    alertSpy = spyOn(alertsService, 'addWarning').and.callThrough();
+    spyOn(pageContextService, 'getEntityType').and.returnValue('exploration');
+    spyOn(pageContextService, 'getEntityId').and.returnValue('1');
+    spyOn(pageContextService, 'getImageSaveDestination').and.returnValue(
+      AppConstants.IMAGE_SAVE_DESTINATION_SERVER
+    );
+    spyOn(csrfService, 'getTokenAsync').and.callFake(() => {
+      return Promise.resolve('sample-csrf-token');
+    });
+    svgFileFetcherBackendApiService = TestBed.inject(
+      SvgFileFetcherBackendApiService
+    );
+    spyOn(window, 'Image').and.returnValue(
+      new mockImageObject() as Partial<HTMLImageElement> as HTMLImageElement
+    );
+    spyOn(window, 'FileReader').and.returnValue(
+      new mockReaderObject() as Partial<FileReader> as FileReader
+    );
+    fixture = TestBed.createComponent(SvgEditorComponent);
+    component = fixture.componentInstance;
+    initializeMockDocument(component);
+    component.ngOnInit();
+    component.canvas = new fabric.Canvas(component.canvasID);
+    component.initializeMouseEvents();
+    var mockPicker = {
+      setOptions: (data: object) => {
+        return 'The value is set.';
+      },
+    };
+    component.fillPicker = mockPicker;
+    component.strokePicker = mockPicker;
+    component.bgPicker = mockPicker;
+  }));
+
+  it('should wait before updating diagram size when dom is loading', waitForAsync(
+    fakeAsync(() => {
+      spyOnProperty(document, 'readyState').and.returnValue('loading');
+      spyOn(document, 'addEventListener').and.callFake((eventName, handler) => {
+        setTimeout(() => handler());
+      });
+      component.ngOnInit();
+      tick(10);
+      component.bgPicker?.onOpen?.();
+      var WIDTH = 100;
+      var HEIGHT = 100;
+      component.diagramWidth = WIDTH;
+      component.diagramHeight = HEIGHT;
+      component.onWidthInputBlur();
+      expect(component.currentDiagramWidth).toBe(WIDTH);
+      component.onHeightInputBlur();
+      expect(component.currentDiagramHeight).toBe(HEIGHT);
+    })
+  ));
+
+  it('should add tags to canvas regardless of ids specified', waitForAsync(
+    fakeAsync(() => {
+      spyOnProperty(document, 'readyState').and.returnValue('loaded');
+      let sampleSVGWithoutId =
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.or' +
+        'g/1999/xlink" version="1.1" width="494" height="367" viewBox="0 0 ' +
+        '494 367"><desc>Created with Fabric.js 3.6.3</desc><path d="M 15.0000' +
+        '00000000004 -25.980762113533157 A 30 30 0 0 1 15.000000000000004 25.' +
+        '980762113533157" style="stroke: rgb(255,0,0); stroke-width: 1; strok' +
+        'e-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; strok' +
+        'e-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,0,0); fill-ru' +
+        'le: nonzero; opacity: 1; vector-effect: non-scaling-stroke' +
+        '"/></svg>';
+
+      component.savedSvgDiagram = 'saved';
+      component.savedSvgDiagram = sampleSVGWithoutId;
+      component.continueDiagramEditing();
+      tick();
+      expect(component.canvas.getObjects().length).toBe(1);
+
+      let sampleSVGWithGroup =
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.or' +
+        'g/1999/xlink" version="1.1" width="494" height="367" viewBox="0 0 ' +
+        '494 367"><desc>Created with Fabric.js 3.6.3</desc><path d="M 15.0000' +
+        '00000000004 -25.980762113533157 A 30 30 0 0 1 15.000000000000004 25.' +
+        '980762113533157" style="stroke: rgb(255,0,0); stroke-width: 1; strok' +
+        'e-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; strok' +
+        'e-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,0,0); fill-ru' +
+        'le: nonzero; opacity: 1; vector-effect: non-scaling-stroke' +
+        '" id="group0"/></svg>';
+
+      component.savedSvgDiagram = 'saved';
+      component.savedSvgDiagram = sampleSVGWithGroup;
+      component.continueDiagramEditing();
+      tick();
+      expect(component.canvas.getObjects().length).toBe(1);
+
+      let sampleSVGWithRandomId =
+        '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.or' +
+        'g/1999/xlink" version="1.1" width="494" height="367" viewBox="0 0 ' +
+        '494 367"><desc>Created with Fabric.js 3.6.3</desc><path d="M 15.0000' +
+        '00000000004 -25.980762113533157 A 30 30 0 0 1 15.000000000000004 25.' +
+        '980762113533157" style="stroke: rgb(255,0,0); stroke-width: 1; strok' +
+        'e-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; strok' +
+        'e-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,0,0); fill-ru' +
+        'le: nonzero; opacity: 1; vector-effect: non-scaling-stroke' +
+        '" id="randomId"/></svg>';
+
+      component.savedSvgDiagram = 'saved';
+      component.savedSvgDiagram = sampleSVGWithRandomId;
+      component.continueDiagramEditing();
+      tick();
+      expect(component.canvas.getObjects().length).toBe(1);
+    })
+  ));
+
+  it('should discard SVG when discard button is clicked', () => {
+    spyOn(component.discardImage, 'emit');
+
+    component.discardSvgFile();
+
+    expect(component.discardImage.emit).toHaveBeenCalled();
+  });
+
+  it('should update diagram size when dom had loaded', waitForAsync(
+    fakeAsync(() => {
+      spyOnProperty(document, 'readyState').and.returnValue('loaded');
+      component.ngOnInit();
+      tick(100);
+      component.bgPicker?.onOpen?.();
+      var WIDTH = 100;
+      var HEIGHT = 100;
+      component.diagramWidth = WIDTH;
+      component.diagramHeight = HEIGHT;
+      component.onWidthInputBlur();
+      expect(component.currentDiagramWidth).toBe(WIDTH);
+      component.onHeightInputBlur();
+      expect(component.currentDiagramHeight).toBe(HEIGHT);
+    })
+  ));
+
+  it('should reset to maximum width correctly', () => {
+    component.diagramWidth = 600;
+    component.onWidthInputBlur();
+    expect(component.currentDiagramWidth).toBe(
+      SvgEditorConstants.MAX_SVG_DIAGRAM_WIDTH
+    );
+  });
+
+  it('should reset to maximum height correctly', () => {
+    component.diagramHeight = 600;
+    component.onHeightInputBlur();
+    expect(component.currentDiagramHeight).toBe(
+      SvgEditorConstants.MAX_SVG_DIAGRAM_HEIGHT
+    );
+  });
+
+  it('should reset to minimum width correctly', () => {
+    component.diagramWidth = 0;
+    component.onWidthInputBlur();
+    expect(component.currentDiagramWidth).toBe(
+      SvgEditorConstants.MIN_SVG_DIAGRAM_WIDTH
+    );
+  });
+
+  it('should reset to minimum height correctly', () => {
+    component.diagramHeight = 0;
+    component.onHeightInputBlur();
+    expect(component.currentDiagramHeight).toBe(
+      SvgEditorConstants.MIN_SVG_DIAGRAM_HEIGHT
+    );
+  });
+
+  it('should fail svg validation', () => {
+    spyOn(
+      svgSanitizerService,
+      'getInvalidSvgTagsAndAttrsFromDataUri'
+    ).and.callFake(() => {
+      return {tags: [], attrs: ['width']};
+    });
+    spyOn(svgSanitizerService, 'getTrustedSvgResourceUrl').and.callFake(
+      (data: string) => data
+    );
+    var invalidWidthAttribute =
+      '<svg widht="100" height="100"><rect id="rectangle-de569866-9c11-b553-' +
+      'f5b7-4194e2380d9f" x="143" y="97" width="12" height="29" stroke="hsla' +
+      '(0, 0%, 0%, 1)" fill="hsla(0, 0%, 100%, 1)" stroke-width="1"></rect>' +
+      '</svg>';
+    expect(() => {
+      component.isSvgTagValid(invalidWidthAttribute);
+    }).toThrowError('Invalid attributes in svg:width');
+  });
+
+  it('should fail svg validation', () => {
+    spyOn(
+      svgSanitizerService,
+      'getInvalidSvgTagsAndAttrsFromDataUri'
+    ).and.callFake(() => {
+      return {tags: ['script'], attrs: []};
+    });
+    spyOn(svgSanitizerService, 'getTrustedSvgResourceUrl').and.callFake(
+      (data: string) => data
+    );
+    var invalidSvgTag =
+      '<svg width="100" height="100"><rect id="rectangle-de569866-9c11-b553-' +
+      'f5b7-4194e2380d9f" x="143" y="97" width="12" height29" stroke="hsla(0' +
+      ', 0%, 0%, 1)" fill="hsla(0, 0%, 100%, 1)" stroke-width="1"></rect>' +
+      '<script src="evil.com"></script></svg>';
+    expect(() => {
+      component.isSvgTagValid(invalidSvgTag);
+    }).toThrowError('Invalid tags in svg:script');
+  });
+
+  it('should check if diagram is created', () => {
+    var rect = new fabric.Rect({
+      top: 10,
+      left: 10,
+      width: 60,
+      height: 70,
+    });
+    component.canvas.add(rect);
+    expect(component.isDiagramCreated()).toBe(true);
+  });
+
+  it('should create different shapes', () => {
+    component.createRect();
+    component.createLine();
+    component.createCircle();
+    component.createText();
+    expect(component.canvas.getObjects()[0].get('type')).toBe('rect');
+    expect(component.canvas.getObjects()[1].get('type')).toBe('line');
+    expect(component.canvas.getObjects()[2].get('type')).toBe('circle');
+    expect(component.canvas.getObjects()[3].get('type')).toBe('textbox');
+
+    component.togglePencilDrawing();
+    expect(component.isPencilEnabled()).toBe(true);
+    component.togglePencilDrawing();
+    component.createOpenPolygon();
+    expect(component.isOpenPolygonEnabled()).toBe(true);
+    component.createOpenPolygon();
+    component.polyOptions.lines.push(new fabric.Line([10, 10, 50, 50]));
+    component.polyOptions.bboxPoints.push(new PolyPoint(10, 10));
+    component.createClosedPolygon();
+    expect(component.isClosedPolygonEnabled()).toBe(true);
+    component.createClosedPolygon();
+  });
+
+  it('should change the order of shapes', () => {
+    component.createCircle();
+    component.createRect();
+    expect(component.canvas.getObjects()[0].get('type')).toBe('circle');
+    expect(component.canvas.getObjects()[1].get('type')).toBe('rect');
+    component.canvas.setActiveObject(component.canvas.getObjects()[0]);
+    component.bringObjectForward();
+    expect(component.canvas.getObjects()[0].get('type')).toBe('rect');
+    expect(component.canvas.getObjects()[1].get('type')).toBe('circle');
+    component.sendObjectBackward();
+    expect(component.canvas.getObjects()[0].get('type')).toBe('circle');
+    expect(component.canvas.getObjects()[1].get('type')).toBe('rect');
+  });
+
+  it('should undo and redo the creation of shapes', () => {
+    for (var i = 0; i < 6; i++) {
+      component.createRect();
+    }
+    expect(component.canvas.getObjects().length).toBe(6);
+    expect(component.isUndoEnabled()).toBe(true);
+    component.onUndo();
+    expect(component.canvas.getObjects().length).toBe(5);
+    expect(component.isRedoEnabled()).toBe(true);
+    component.onRedo();
+    expect(component.canvas.getObjects().length).toBe(6);
+    component.canvas.setActiveObject(component.canvas.getObjects()[5]);
+    component.removeShape();
+    expect(component.canvas.getObjects().length).toBe(5);
+    component.onUndo();
+    expect(component.canvas.getObjects().length).toBe(6);
+    component.onRedo();
+    expect(component.canvas.getObjects().length).toBe(5);
+    expect(component.isClearEnabled()).toBe(true);
+    component.onClear();
+    expect(component.objectUndoStack.length).toBe(0);
+  });
+
+  it('should change properties of a shape', () => {
+    component.createRect();
+    component.canvas.setActiveObject(component.canvas.getObjects()[0]);
+    var color = 'rgba(10, 10, 10, 1)';
+    component.fabricjsOptions.stroke = color;
+    component.fabricjsOptions.fill = color;
+    component.fabricjsOptions.bg = color;
+    component.fabricjsOptions.size = '10px';
+    component.onStrokeChange();
+    component.onFillChange();
+    component.onBgChange();
+    component.onSizeChange();
+    var rectShape = component.canvas.getObjects()[0];
+    expect(rectShape.get('stroke')).toBe(color);
+    expect(rectShape.get('fill')).toBe(color);
+    expect(component.canvas.backgroundColor).toBe(color);
+    expect(rectShape.get('strokeWidth')).toBe(10);
+    component.createText();
+    component.canvas.discardActiveObject();
+    component.canvas.setActiveObject(component.canvas.getObjects()[1]);
+    component.fabricjsOptions.bold = true;
+    component.fabricjsOptions.italic = true;
+    component.fabricjsOptions.fontFamily = 'comic sans ms';
+    component.fabricjsOptions.size = '12px';
+    component.onItalicToggle();
+    component.onBoldToggle();
+    component.onFontChange();
+    component.onSizeChange();
+    var textObj = component.canvas.getObjects()[1];
+    expect(textObj.get('fontStyle' as keyof fabric.Object)).toBe('italic');
+    expect(textObj.get('fontWeight' as keyof fabric.Object)).toBe('bold');
+    expect(textObj.get('fontFamily' as keyof fabric.Object)).toBe(
+      'comic sans ms'
+    );
+    expect(textObj.get('fontSize' as keyof fabric.Object)).toBe(12);
+  });
+
+  it('should draw polygon using mouse events', () => {
+    component.createClosedPolygon();
+    component.canvas.fire('mouse:down', {
+      e: {
+        pageX: 0,
+        pageY: 0,
+      },
+    });
+    component.canvas.fire('mouse:move', {
+      e: {
+        pageX: 100,
+        pageY: 100,
+      },
+    });
+    component.canvas.fire('mouse:dblclick');
+    expect(component.canvas.getObjects()[0].get('type')).toBe('polyline');
+    component.createClosedPolygon();
+    component.isTouchDevice = true;
+    component.canvas.fire('mouse:down', {
+      e: {
+        pageX: 0,
+        pageY: 0,
+      },
+    });
+    component.canvas.fire('mouse:down', {
+      e: {
+        pageX: 10,
+        pageY: 10,
+      },
+    });
+    component.createClosedPolygon();
+    expect(component.canvas.getObjects()[1].get('type')).toBe('polyline');
+  });
+
+  it('should create a bezier curve', () => {
+    component.createRect();
+    component.createQuadraticBezier();
+    expect(component.isDrawModeBezier()).toBe(true);
+    component.canvas.fire('object:moving', {
+      target: {
+        name: 'p0',
+        left: 100,
+        top: 100,
+      },
+    });
+    component.canvas.fire('object:moving', {
+      target: {
+        name: 'p1',
+        left: 200,
+        top: 200,
+      },
+    });
+    component.canvas.fire('object:moving', {
+      target: {
+        name: 'p2',
+        left: 300,
+        top: 300,
+      },
+    });
+    component.onStrokeChange();
+    component.onFillChange();
+    component.onSizeChange();
+    component.createQuadraticBezier();
+    expect(component.isDrawModeBezier()).toBe(false);
+    expect(
+      component.canvas.getObjects()[1].get('path' as keyof fabric.Object)
+    ).toEqual([
+      ['M', 100, 100],
+      ['Q', 200, 200, 300, 300],
+    ]);
+    expect(component.canvas.getObjects()[1].get('type')).toBe('path');
+  });
+
+  it('should create a pie chart', () => {
+    component.createPieChart();
+    expect(component.isPieChartEnabled()).toBe(true);
+    expect(component.isDrawModePieChart()).toBe(true);
+    component.onAddItem();
+    component.pieChartDataInput[2].data = 100;
+    component.createPieChart();
+    expect(component.isDrawModePieChart()).toBe(false);
+  });
+
+  it('should upload an svg file', () => {
+    var fileContent =
+      'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjA' +
+      'wMC9zdmciICB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCI+PGNpcmNsZSBjeD0iNTAiIGN5' +
+      'PSI1MCIgcj0iNDAiIHN0cm9rZT0iZ3JlZW4iIHN0cm9rZS13aWR0aD0iNCIgZmlsbD0ie' +
+      'WVsbG93IiAvPjwvc3ZnPg==';
+    component.uploadSvgFile();
+    expect(component.isSvgUploadEnabled()).toBe(true);
+    expect(component.isDrawModeSvgUpload()).toBe(true);
+    var file = new File([fileContent], 'circle.svg', {type: 'image/svg'});
+    component.onFileChanged(file, 'circle.svg');
+    component.uploadedSvgDataUrl = {
+      safeUrl: fileContent,
+      unsafeUrl: fileContent,
+    };
+    expect(component.isFileUploaded()).toBe(true);
+    component.uploadSvgFile();
+    expect(component.canvas.getObjects()[0].get('type')).toBe('group');
+    component.canvas.setActiveObject(component.canvas.getObjects()[0]);
+    expect(component.displayFontStyles).toBe(false);
+    component.uploadSvgFile();
+    expect(component.isDrawModeSvgUpload()).toBe(true);
+    var file = new File([fileContent], 'circle.svg', {type: 'image/svg'});
+    component.onFileChanged(file, 'circle.svg');
+    component.uploadedSvgDataUrl = {
+      safeUrl: fileContent,
+      unsafeUrl: fileContent,
+    };
+    expect(component.isFileUploaded()).toBe(true);
+    component.loadType = 'nogroup';
+    component.uploadSvgFile();
+    expect(component.canvas.getObjects()[1].get('type')).toBe('circle');
+  });
+
+  it('should set title with onOpen color picker function', waitForAsync(() => {
+    const domReady = new Promise((resolve, reject) => {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', resolve);
+      } else {
+        resolve(0);
+      }
+    });
+    domReady.then(() => {
+      fixture.detectChanges();
+      component.bgPicker?.onOpen?.();
+      let alphaSliders = document.querySelectorAll(
+        '.picker_alpha .picker_selector'
+      );
+      alphaSliders.forEach(element => {
+        expect(element.getAttribute('title')).toBe('Transparency Slider');
+      });
+    });
+  }));
+
+  it('should trigger object selection and scaling events', () => {
+    component.createRect();
+    component.createText();
+    component.canvas.setActiveObject(component.canvas.getObjects()[0]);
+    component.canvas.setActiveObject(component.canvas.getObjects()[1]);
+    expect(component.isSizeVisible()).toBe(true);
+    expect(component.displayFontStyles).toBe(true);
+    component.canvas.fire('object:scaling');
+    expect(component.canvas.getObjects()[1].get('scaleX')).toBe(1);
+    expect(component.canvas.getObjects()[1].get('scaleY')).toBe(1);
+  });
+
+  it('should save svg file created by the editor', waitForAsync(
+    fakeAsync(() => {
+      component.createText();
+      spyOn(svgFileFetcherBackendApiService, 'postSvgFile').and.callFake(() => {
+        return of({filename: 'imageFile1.svg'});
+      });
+      component.saveSvgFile();
+      tick(1);
+      fixture.detectChanges();
+      tick(1);
+      expect(component.data.savedSvgFileName).toBe('imageFile1.svg');
+      expect(component.data.savedSvgUrl?.toString()).toBe(dataUrl);
+      expect(component.validate()).toBe(true);
+    })
+  ));
+
+  it('should not save svg file when no diagram is created', () => {
+    component.saveSvgFile();
+    expect(alertSpy).toHaveBeenCalledWith('Custom Diagram not created.');
+  });
+
+  it('should handle rejection when saving an svg file fails', waitForAsync(
+    fakeAsync(() => {
+      component.createRect();
+      var errorMessage = 'Image exceeds file size limit of 100 KB.';
+      spyOn(component, 'postSvgToServer').and.callFake(() => {
+        return Promise.reject({error: {error: errorMessage}});
+      });
+      component.saveSvgFile();
+      tick(1);
+      fixture.detectChanges();
+      tick(1);
+      expect(alertSpy).toHaveBeenCalledWith(errorMessage);
+    })
+  ));
+
+  it('should allow user to continue editing the diagram when dom loaded', waitForAsync(
+    fakeAsync(() => {
+      spyOnProperty(document, 'readyState').and.returnValue('loaded');
+      component.savedSvgDiagram = 'saved';
+      component.savedSvgDiagram = samplesvg;
+      component.continueDiagramEditing();
+      tick(100);
+      var mocktoSVG = (arg: object) => {
+        return '<path></path>';
+      };
+      var customToSVG = component.createCustomToSVG(
+        mocktoSVG as () => string,
+        'path',
+        'group1',
+        component
+      );
+      expect(customToSVG()).toBe('<path id="group1"/>');
+      expect(component.diagramStatus).toBe('editing');
+    })
+  ));
+
+  it(
+    'should wait for the dom to load before allowing the user to continue ' +
+      'editing the diagram',
+    waitForAsync(
+      fakeAsync(() => {
+        spyOnProperty(document, 'readyState').and.returnValue('loading');
+        spyOn(document, 'addEventListener').and.callFake(
+          (eventName: string, handler: EventListener) => {
+            setTimeout(() => handler(new Event(eventName)));
+          }
+        );
+        component.savedSvgDiagram = 'saved';
+        component.savedSvgDiagram = samplesvg;
+        component.continueDiagramEditing();
+        tick(10);
+        var mocktoSVG = (arg: object) => {
+          return '<path></path>';
+        };
+        var customToSVG = component.createCustomToSVG(
+          mocktoSVG as () => string,
+          'path',
+          'group1',
+          component
+        );
+        expect(customToSVG()).toBe('<path id="group1"/>');
+        expect(component.diagramStatus).toBe('editing');
+      })
+    )
+  );
+
+  it('should show warning when image data conversion fails', () => {
+    component.createRect();
+    const imageUploadHelperService = TestBed.inject(ImageUploadHelperService);
+    spyOn(
+      imageUploadHelperService,
+      'convertImageDataToImageFile'
+    ).and.returnValue(null);
+    component.saveSvgFile();
+    expect(alertSpy).toHaveBeenCalledWith('Custom Diagram could not be saved.');
+  });
+
+  it('should throw error when svg tag is missing in generated SVG', () => {
+    spyOn(component.canvas, 'toSVG').and.returnValue('<html></html>');
+    expect(() => {
+      // This throws "Property 'getSvgString' is private". We need to
+      // suppress this error because we are testing the private method.
+      // @ts-ignore
+      component.getSvgString();
+    }).toThrowError('No svg tag found in generated SVG string.');
+  });
+
+  it('should handle null parentG in createCustomToSVG', () => {
+    var mocktoSVG = () => '<path></path>';
+    var customToSVG = component.createCustomToSVG(
+      mocktoSVG,
+      'nonexistent',
+      'group1',
+      component
+    );
+    var result = customToSVG();
+    expect(result).toContain('<path');
+  });
+
+  it('should handle undefined bezier curve in onStrokeChange', () => {
+    component.createQuadraticBezier();
+    component.canvas.clear();
+    component.onStrokeChange();
+    expect(component.drawMode).toBe(component.DRAW_MODE_BEZIER);
+  });
+
+  it('should handle undefined bezier curve in onFillChange', () => {
+    component.createQuadraticBezier();
+    component.canvas.clear();
+    component.onFillChange();
+    expect(component.drawMode).toBe(component.DRAW_MODE_BEZIER);
+  });
+
+  it('should handle undefined bezier curve in onSizeChange', () => {
+    component.createQuadraticBezier();
+    component.canvas.clear();
+    component.onSizeChange();
+    expect(component.drawMode).toBe(component.DRAW_MODE_BEZIER);
+  });
+
+  it('should return early when color picker parent element is missing', () => {
+    spyOn(document, 'getElementById')
+      .withArgs('stroke-color')
+      .and.returnValue(null);
+    // This throws "Property 'createColorPicker' is private". We need to
+    // suppress this error because we are testing the private method.
+    // @ts-ignore
+    component.createColorPicker('stroke');
+  });
+
+  it('should handle uploaded SVG file with valid data URL', () => {
+    var svgContent =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">' +
+      '</svg>';
+    var b64Content = btoa(svgContent);
+    var dataUrl = 'data:image/svg+xml;base64,' + b64Content;
+    var customReader = {
+      result: null,
+      onload: null,
+      readAsDataURL: function (
+        this: {result: string | null; onload: (() => void) | null},
+        file: Blob
+      ) {
+        this.result = dataUrl;
+        if (this.onload) {
+          this.onload();
+        }
+      },
+    };
+    (window.FileReader as unknown as jasmine.Spy).and.returnValue(
+      customReader as unknown as FileReader
+    );
+    var file = new File([svgContent], 'test.svg', {type: 'image/svg'});
+    component.onFileChanged(file, 'test.svg');
+    expect(component.uploadedSvgDataUrl).not.toBeNull();
+    expect(component.uploadedSvgDataUrl?.unsafeUrl).toBe(dataUrl);
+  });
+
+  it('should handle null safeUrl in setUploadedFile', () => {
+    var svgContent =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">' +
+      '</svg>';
+    var b64Content = btoa(svgContent);
+    var dataUrl = 'data:image/svg+xml;base64,' + b64Content;
+    var customReader = {
+      result: null,
+      onload: null,
+      readAsDataURL: function (
+        this: {result: string | null; onload: (() => void) | null},
+        file: Blob
+      ) {
+        this.result = dataUrl;
+        if (this.onload) {
+          this.onload();
+        }
+      },
+    };
+    (window.FileReader as unknown as jasmine.Spy).and.returnValue(
+      customReader as unknown as FileReader
+    );
+    spyOn(svgSanitizerService, 'getTrustedSvgResourceUrl').and.returnValue(
+      null
+    );
+    var file = new File([svgContent], 'test.svg', {type: 'image/svg'});
+    component.onFileChanged(file, 'test.svg');
+    expect(component.uploadedSvgDataUrl).toBeNull();
+  });
+
+  it('should handle undefined activePathObject in createQuadraticBezier', () => {
+    component.createQuadraticBezier();
+    component.canvas.clear();
+    component.createQuadraticBezier();
+    expect(component.drawMode).toBe(component.DRAW_MODE_BEZIER);
+  });
+
+  it('should handle non-array path in createQuadraticBezier', () => {
+    component.createQuadraticBezier();
+    component.canvas.clear();
+    component.createRect();
+    component.createRect();
+    component.createRect();
+    component.createRect();
+    component.createQuadraticBezier();
+    expect(component.drawMode).toBe(component.DRAW_MODE_NONE);
+  });
+
+  it('should handle various undefined states in bezier object:moving', () => {
+    component.createQuadraticBezier();
+    component.canvas.fire('object:moving', {
+      target: undefined,
+    });
+    component.canvas.clear();
+    component.canvas.fire('object:moving', {
+      target: {name: 'p0', left: 100, top: 100},
+    });
+    component.drawMode = component.DRAW_MODE_BEZIER;
+    component.canvas.fire('object:moving', {
+      target: {name: 'p0'},
+    });
+    component.canvas.fire('object:moving', {
+      target: {name: 'p0', left: 100},
+    });
+  });
+
+  it('should handle undefined element in continueDiagramEditing', fakeAsync(() => {
+    component.savedSvgDiagram = '<svg></svg>';
+    // This throws "Property 'loadSVGFromString' does not exist on type
+    // 'typeof import("fabric")'". We need to suppress this error because
+    // this method exists at runtime.
+    // @ts-expect-error
+    spyOn(fabric, 'loadSVGFromString').and.callFake(
+      (svgString: string, callback: Function) => {
+        callback([new fabric.Rect()], {}, []);
+      }
+    );
+    component.continueDiagramEditing();
+    tick();
+  }));
+
+  it('should handle undefined undoObj in onUndo', () => {
+    component.createRect();
+    // This throws "Property 'objectUndoStack' is private". We need to
+    // suppress this error because we are accessing it for testing.
+    // @ts-expect-error
+    component.objectUndoStack.pop = () => undefined;
+    component.onUndo();
+  });
+
+  it('should handle undefined shape in onUndo', () => {
+    component.createRect();
+    spyOn(component.canvasObjects, 'pop').and.returnValue(undefined);
+    component.onUndo();
+  });
+
+  it('should handle undefined redoObj in onRedo', () => {
+    component.createRect();
+    component.onUndo();
+    // This throws "Property 'objectRedoStack' is private". We need to
+    // suppress this error because we are accessing it for testing.
+    // @ts-expect-error
+    component.objectRedoStack.pop = () => undefined;
+    component.onRedo();
+  });
+
+  it('should handle non-numeric type values in scaling event', () => {
+    component.createText();
+    component.canvas.setActiveObject(component.canvas.getObjects()[0]);
+    var text = component.canvas.getActiveObject();
+    if (text) {
+      spyOn(text, 'get').and.callFake((prop: string) => {
+        if (prop === 'type') {
+          return 'textbox';
+        }
+        if (prop === 'scaleX' || prop === 'scaleY') {
+          return undefined;
+        }
+        if (prop === 'width') {
+          return 100;
+        }
+        if (prop === 'height') {
+          return 50;
+        }
+        // This throws "Property 'get' does not exist on type
+        // 'Object'".
+        // We need to suppress this error because we need to call the get
+        // method on the prototype.
+        // @ts-expect-error
+        return (
+          fabric.Object.prototype as unknown as Record<string, Function>
+        ).get.call(text, prop);
+      });
+    }
+    component.canvas.fire('object:scaling');
+  });
+
+  it('should handle undefined shape on selection', () => {
+    spyOn(component.canvas, 'getActiveObject').and.returnValue(undefined);
+    component.canvas.fire('selection:created');
+  });
+
+  it('should handle undefined strokeWidth on selection', () => {
+    component.createRect();
+    component.canvas.setActiveObject(component.canvas.getObjects()[0]);
+    var rect = component.canvas.getActiveObject();
+    if (rect) {
+      spyOn(rect, 'get').and.callFake((prop: string) => {
+        if (prop === 'strokeWidth') {
+          return undefined;
+        }
+        if (prop === 'type') {
+          return 'rect';
+        }
+        if (prop === 'fill') {
+          return 'rgba(0,0,0,0)';
+        }
+        if (prop === 'stroke') {
+          return 'rgba(0,0,0,1)';
+        }
+        return 1;
+      });
+    }
+    component.canvas.fire('selection:created');
+  });
+
+  it('should handle undefined fontSize on selection', () => {
+    component.createText();
+    component.canvas.setActiveObject(component.canvas.getObjects()[0]);
+    var text = component.canvas.getActiveObject();
+    if (text) {
+      spyOn(text, 'get').and.callFake((prop: string) => {
+        if (prop === 'fontSize') {
+          return undefined;
+        }
+        if (prop === 'type') {
+          return 'textbox';
+        }
+        if (prop === 'fill') {
+          return '#000';
+        }
+        if (prop === 'stroke') {
+          return '#000';
+        }
+        if (prop === 'fontFamily') {
+          return 'Arial';
+        }
+        return 1;
+      });
+    }
+    component.canvas.fire('selection:created');
+  });
+
+  it('should handle null alpha squares in createColorPicker onChange', () => {
+    // This throws "Property 'createColorPicker' is private". We need to
+    // suppress this error because we are testing the private method.
+    // @ts-ignore
+    component.createColorPicker('stroke');
+    const originalGetElementById = document.getElementById.bind(document);
+    spyOn(document, 'getElementById').and.callFake((id: string) => {
+      if (id === 'top-stroke-alpha' || id === 'bottom-stroke-alpha') {
+        return null;
+      }
+      return originalGetElementById(id);
+    });
+    component.strokePicker?.setOptions({
+      color: 'rgba(255, 0, 0, 1)',
+    });
+  });
+});
+
+describe('SvgEditor initialized with value attribute', () => {
+  var component: SvgEditorComponent;
+  var pageContextService: PageContextService;
+  let svgSanitizerService: SvgSanitizerService;
+  let imageLocalStorageService: ImageLocalStorageService;
+  var samplesvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.or' +
+    'g/1999/xlink" version="1.1" width="494" height="367" viewBox="0 0 494' +
+    ' 367"><desc>Created with Fabric.js 3.6.3</desc><rect x="0" y="0" ' +
+    'width="100%" height="100%" fill="rgba(10,245,49,0.607)"/></svg>';
+  var mockAssetsBackendApiService = {
+    getImageUrlForPreview: (
+      contentType: string,
+      contentId: string,
+      filepath: string
+    ) => {
+      return '/imageurl_' + contentType + '_' + contentId + '_' + filepath;
+    },
+  };
+  var mockImagePreloaderService = {
+    getDimensionsOfImage: () => {
+      return {
+        width: 450,
+        height: 350,
+      };
+    },
+  };
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      declarations: [SvgEditorComponent],
+      providers: [
+        {
+          provide: AssetsBackendApiService,
+          useValue: mockAssetsBackendApiService,
+        },
+        {
+          provide: ImagePreloaderService,
+          useValue: mockImagePreloaderService,
+        },
+      ],
+      schemas: [NO_ERRORS_SCHEMA],
+    }).compileComponents();
+    component = TestBed.createComponent(SvgEditorComponent).componentInstance;
+    component.value = 'svgimageFilename1.svg';
+    pageContextService = TestBed.inject(PageContextService);
+    svgSanitizerService = TestBed.inject(SvgSanitizerService);
+    imageLocalStorageService = TestBed.inject(ImageLocalStorageService);
+    const svgFileFetcherBackendApiService: SvgFileFetcherBackendApiService =
+      TestBed.inject(SvgFileFetcherBackendApiService);
+    spyOn(svgFileFetcherBackendApiService, 'fetchSvg').and.returnValue(
+      of(samplesvg)
+    );
+    initializeMockDocument(component);
+  }));
+
+  it('should load the svg file', waitForAsync(
+    fakeAsync(() => {
+      spyOn(pageContextService, 'getEntityType').and.returnValue('exploration');
+      spyOn(pageContextService, 'getEntityId').and.returnValue('1');
+      component.ngOnInit();
+      tick(10);
+      expect(component.diagramStatus).toBe('saved');
+      expect(component.savedSvgDiagram).toBe(samplesvg);
+    })
+  ));
+
+  it('should handle previously uploaded svg diagram correctly', waitForAsync(
+    fakeAsync(() => {
+      spyOn(svgSanitizerService, 'getTrustedSvgResourceUrl');
+      spyOn(pageContextService, 'getImageSaveDestination').and.returnValue(
+        AppConstants.IMAGE_SAVE_DESTINATION_LOCAL_STORAGE
+      );
+      let dataUrl =
+        'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcv';
+      spyOn(imageLocalStorageService, 'getRawImageData').and.returnValue(
+        dataUrl
+      );
+      component.value = 'svgimageFilename1.svg';
+      component.ngOnInit();
+      tick(10);
+      expect(svgSanitizerService.getTrustedSvgResourceUrl).toHaveBeenCalledWith(
+        dataUrl
+      );
+    })
+  ));
+});
+
+describe('SvgEditor with image save destination as local storage', () => {
+  var pageContextService: PageContextService;
+  let fixture: ComponentFixture<SvgEditorComponent>;
+  var component: SvgEditorComponent;
+  var samplesvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.or' +
+    'g/1999/xlink" version="1.1" width="494" height="367" viewBox="0 0 494' +
+    ' 367"><desc>Created with Fabric.js 3.6.3</desc><rect x="0" y="0" ' +
+    'width="100%" height="100%" fill="rgba(10,245,49,0.607)"/></svg>';
+  var dataUrl = 'data:image/svg+xml;utf8,' + samplesvg;
+
+  var mockilss = {
+    getRawImageData: (filename: string) => {
+      return dataUrl;
+    },
+    saveImage: (filename: string, imageData: string) => {
+      return 'Image file save.';
+    },
+    deleteImage: (filename: string) => {
+      return 'Image file is deleted.';
+    },
+    isInStorage: (filename: string) => {
+      return true;
+    },
+  };
+
+  var mockImageUploadHelperService = {
+    convertImageDataToImageFile: (svgDataUri: string) => {
+      return new Blob();
+    },
+    generateImageFilename: (
+      height: number,
+      widht: number,
+      extension: string
+    ) => {
+      return height + '_' + widht + '.' + extension;
+    },
+  };
+
+  var mockSvgSanitizerService = {
+    getInvalidSvgTagsAndAttrsFromDataUri: (dataUri: string) => {
+      return {tags: [], attrs: []};
+    },
+    getTrustedSvgResourceUrl: (data: string) => {
+      return data;
+    },
+  };
+
+  var mockImagePreloaderService = {
+    getDimensionsOfImage: () => {
+      return {
+        width: 450,
+        height: 350,
+      };
+    },
+  };
+
+  class mockReaderObject {
+    result: string | null = null;
+    onload: (() => string) | null = null;
+    constructor() {
+      this.onload = () => {
+        return 'Fake onload executed';
+      };
+    }
+
+    readAsDataURL(file: Blob): string {
+      this.onload?.();
+      return 'The file is loaded';
+    }
+  }
+
+  class mockImageObject {
+    source: string | null = null;
+    onload: (() => string) | null = null;
+    constructor() {
+      this.onload = () => {
+        return 'Fake onload executed';
+      };
+    }
+
+    set src(url: string) {
+      this.onload?.();
+    }
+  }
+
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      declarations: [SvgEditorComponent],
+      providers: [
+        {
+          provide: AssetsBackendApiService,
+          useValue: {},
+        },
+        {
+          provide: ImageLocalStorageService,
+          useValue: mockilss,
+        },
+        {
+          provide: ImagePreloaderService,
+          useValue: mockImagePreloaderService,
+        },
+        {
+          provide: ImageUploadHelperService,
+          useValue: mockImageUploadHelperService,
+        },
+        {
+          provide: SvgSanitizerService,
+          useValue: mockSvgSanitizerService,
+        },
+      ],
+      schemas: [NO_ERRORS_SCHEMA],
+    }).compileComponents();
+    pageContextService = TestBed.inject(PageContextService);
+    spyOn(pageContextService, 'getImageSaveDestination').and.returnValue(
+      AppConstants.IMAGE_SAVE_DESTINATION_LOCAL_STORAGE
+    );
+    spyOn(pageContextService, 'getEntityType').and.returnValue('exploration');
+
+    spyOn(window, 'Image').and.returnValue(
+      new mockImageObject() as Partial<HTMLImageElement> as HTMLImageElement
+    );
+    spyOn(window, 'FileReader').and.returnValue(
+      new mockReaderObject() as Partial<FileReader> as FileReader
+    );
+    fixture = TestBed.createComponent(SvgEditorComponent);
+    component = fixture.componentInstance;
+    initializeMockDocument(component);
+    component.ngOnInit();
+    component.canvas = new fabric.Canvas(component.canvasID);
+    component.initializeMouseEvents();
+  }));
+
+  it('should save svg file to local storage created by the svg editor', () => {
+    component.createRect();
+    component.saveSvgFile();
+    expect(component.data.savedSvgFileName).toBe('350_450.svg');
+    expect(component.data.savedSvgUrl?.toString()).toBe(dataUrl);
+    expect(component.validate()).toBe(true);
+  });
+
+  it(
+    'should allow user to continue editing the diagram and delete the ' +
+      'image from local storage',
+    () => {
+      component.data.savedSvgFileName = 'image.svg';
+      component.savedSvgDiagram = 'saved';
+      component.savedSvgDiagram = samplesvg;
+      component.continueDiagramEditing();
+      expect(component.diagramStatus).toBe('editing');
+    }
+  );
+
+  it('should set canvas dimensions correctly', () => {
+    spyOn(component.canvas, 'setHeight');
+    spyOn(component.canvas, 'setWidth');
+    spyOn(component.canvas, 'renderAll');
+
+    component.diagramHeight = 500;
+    component.diagramWidth = 600;
+    component.setCanvasDimensions();
+
+    expect(component.canvas.setHeight).toHaveBeenCalledWith(500);
+    expect(component.canvas.setWidth).toHaveBeenCalledWith(600);
+    expect(component.canvas.renderAll).toHaveBeenCalled();
+  });
+
+  it('should return early from setCanvasDimensions if canvas is not initialized', () => {
+    const originalCanvas = component.canvas;
+    // This throws "Type 'null' is not assignable to type 'Canvas'". We need
+    // to suppress this error because we need to test the null canvas guard.
+    // @ts-ignore
+    component.canvas = null;
+
+    // Should not throw and should return early.
+    expect(() => component.setCanvasDimensions()).not.toThrowError();
+
+    // Restore canvas for cleanup.
+    component.canvas = originalCanvas;
+  });
+
+  it('should handle text object loading with horizontal boundary and missing styles', () => {
+    const mockElement = {
+      childNodes: [
+        {
+          nodeName: 'tspan',
+          childNodes: [{nodeValue: 'test'}],
+          style: {fill: '', stroke: '', strokeWidth: ''},
+        },
+      ],
+      getAttribute: (attr: string) => null,
+    } as unknown as Element;
+    const mockObj = {
+      toObject: () => ({
+        left: 500, // Greater than diagramWidth (450)
+        top: 50,
+        width: 100,
+      }),
+      get: (attr: string) => null,
+    } as unknown as fabric.Object;
+
+    component.diagramWidth = 450;
+    // This throws "Property 'loadTextObject' is private". We need to
+    // suppress this error because we need to test the private method directly.
+    // @ts-ignore
+    component.loadTextObject(mockElement, mockObj);
+
+    // LoadTextObject adds the text to the canvas.
+    const addedText = component.canvas.getObjects()[
+      component.canvas.getObjects().length - 1
+    ] as fabric.Textbox;
+    expect(addedText.left).toBe(450 - (addedText.width || 0));
+    expect(addedText.fill).toBe('#000');
+  });
+
+  it('should preserve newlines between multiple tspan elements', () => {
+    const textElement = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'text'
+    );
+    const tspan1 = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    );
+    tspan1.textContent = 'Goal';
+    const tspan2 = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    );
+    tspan2.textContent = 'How';
+    const tspan3 = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    );
+    tspan3.textContent = 'to cook';
+    textElement.appendChild(tspan1);
+    textElement.appendChild(tspan2);
+    textElement.appendChild(tspan3);
+
+    const fabricObj = new fabric.Text('GoalHowto cook', {
+      left: 50,
+      top: 50,
+      width: 100,
+    });
+
+    component.diagramWidth = 450;
+    component.loadTextObject(textElement, fabricObj);
+
+    const lastObj =
+      component.canvas.getObjects()[component.canvas.getObjects().length - 1];
+    expect(lastObj.get('text')).toBe('Goal\nHow\nto cook');
+  });
+
+  it('should preserve newlines between tspan elements with fill styles', () => {
+    const textElement = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'text'
+    );
+    const tspan1 = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    );
+    tspan1.textContent = 'Goal';
+    tspan1.style.fill = 'red';
+    tspan1.style.stroke = 'black';
+    tspan1.style.strokeWidth = '1';
+    const tspan2 = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    );
+    tspan2.textContent = 'Total';
+    tspan2.style.fill = 'blue';
+    const tspan3 = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'tspan'
+    );
+    tspan3.textContent = 'Text';
+    textElement.appendChild(tspan1);
+    textElement.appendChild(tspan2);
+    textElement.appendChild(tspan3);
+
+    const fabricObj = new fabric.Text('GoalTotalText', {
+      left: 50,
+      top: 50,
+      width: 100,
+    });
+
+    component.diagramWidth = 450;
+    component.loadTextObject(textElement, fabricObj);
+
+    const lastObj =
+      component.canvas.getObjects()[component.canvas.getObjects().length - 1];
+    // Colored tspans should still get newlines between them.
+    expect(lastObj.get('text')).toBe('Goal\nTotal\nText');
+  });
+
+  it('should handle null imageUrl from getTrustedResourceUrlForSvgFileName', () => {
+    var imageLocalStorageService = TestBed.inject(ImageLocalStorageService);
+    spyOn(imageLocalStorageService, 'isInStorage').and.returnValue(true);
+    spyOn(imageLocalStorageService, 'getRawImageData').and.returnValue(null);
+    component.setSavedSvgFilename('test.svg', false);
+    expect(component.data.savedSvgUrl).toBe('');
+  });
+
+  it('should handle null safeUrl in setSavedSvgFilename', () => {
+    var imageLocalStorageService = TestBed.inject(ImageLocalStorageService);
+    spyOn(imageLocalStorageService, 'isInStorage').and.returnValue(true);
+    spyOn(imageLocalStorageService, 'getRawImageData').and.returnValue(dataUrl);
+    var svgSanitizerService = TestBed.inject(SvgSanitizerService);
+    spyOn(svgSanitizerService, 'getTrustedSvgResourceUrl').and.returnValue(
+      null
+    );
+    component.setSavedSvgFilename('test.svg', true);
+    expect(component.uploadedSvgDataUrl).toBeNull();
+  });
+
+  it('should scale down selection in centerContent only when selection dimensions exceed canvas', () => {
+    spyOn(component.canvas, 'getWidth').and.returnValue(490);
+    spyOn(component.canvas, 'getHeight').and.returnValue(490);
+    const mockRect = new fabric.Rect({
+      width: 600,
+      height: 400,
+      strokeWidth: 0,
+    });
+    component.canvas.add(mockRect);
+    spyOn(component.canvas, 'setActiveObject').and.callThrough();
+    spyOn(component.canvas, 'discardActiveObject').and.callThrough();
+
+    component.centerContent();
+
+    expect(mockRect.scaleX).toBeCloseTo(490 / 600, 3);
+  });
+});

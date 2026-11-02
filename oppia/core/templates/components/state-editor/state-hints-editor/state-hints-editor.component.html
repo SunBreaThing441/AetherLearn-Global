@@ -1,0 +1,86 @@
+<div>
+  <div *ngIf="!isCurrentInteractionLinear()">
+    <mat-card class="oppia-editor-card-with-avatar oppia-mobile-collapsible-card">
+      <div class="oppia-editor-card-body">
+        <div class="state-hints-header-container oppia-mobile-collapsible-card-header"
+             (click)="toggleHintCard()"
+             (keydown.enter)="toggleHintCard()">
+          <div class="state-hints-header">
+            <h3 class="oppia-exp-hints-card-header" tabindex="0">Hints</h3>
+            <i class="fa fa-caret-down"
+               *ngIf="!hintCardIsShown"
+               tabindex="0"
+               role="button"
+               aria-label="Expand hint card"
+               [attr.aria-hidden]="hintCardIsShown ? 'true' : 'false'">
+            </i>
+            <i class="fa fa-caret-up"
+               *ngIf="hintCardIsShown"
+               tabindex="0"
+               role="button"
+               aria-label="collapse hint card"
+               [attr.aria-hidden]="hintCardIsShown ? 'false' : 'true'">
+            </i>
+          </div>
+        </div>
+        <div class="state-hints-content-container oppia-mobile-collapsible-card-content" *ngIf="hintCardIsShown">
+          <div class="oppia-add-hint-button-container">
+            <div *ngIf="isEditableOutsideTutorialMode && isEditable">
+              <button type="button"
+                      aria-label="Add hint"
+                      class="btn btn-primary oppia-add-hint-button e2e-test-oppia-add-hint-button"
+                      (click)="openAddHintModal()"
+                      [disabled]="displayedHints.length >= 5">
+                {{getHintButtonText()}}
+              </button>
+            </div>
+          </div>
+          <div *ngIf="displayedHints.length > 0">
+            <div cdkDropList
+                 (cdkDropListDropped)="drop($event)"
+                 class="oppia-option-list-hint nav-stacked nav-pills">
+              <div [cdkDragDisabled]="activeHintIndex === index ? true : false"
+                   cdkDrag
+                   *ngFor="let hint of displayedHints; let index = index"
+                   ngClass="{'active': activeHintIndex === index}"
+                   class="oppia-rule-block oppia-sortable-hint oppia-prevent-selection">
+                <span class="oppia-hint-sort-handle"
+                      *ngIf="displayedHints.length > 1"
+                      (mousedown)="changeActiveHintIndex(null)">
+                  <picture *ngIf="isEditable">
+                    <source type="image/webp" [src]="getStaticImageUrl('/general/drag_dots.webp')">
+                    <source type="image/png" [src]="getStaticImageUrl('/general/drag_dots.png')">
+                    <img [src]="getStaticImageUrl('/general/drag_dots.png')" width="10">
+                  </picture>
+                </span>
+                <a (click)="changeActiveHintIndex(index)"
+                   tabindex="0"
+                   (keydown.enter)="changeActiveHintIndex(index)"
+                   class="oppia-rule-tab e2e-test-hint-tab"
+                   ngClass="{'oppia-rule-tab-active': activeHintIndex === index}">
+                  <oppia-response-header class="oppia-response-header-center e2e-test-current-hint-box"
+                                         [defaultOutcome]="false"
+                                         [index]="index"
+                                         [summary]="getHintSummary(hint)"
+                                         [shortSummary]="getHintSummary(hint)"
+                                         [isActive]="index === activeHintIndex"
+                                         (delete)="deleteHint($event)">
+                  </oppia-response-header>
+                </a>
+
+                <div *ngIf="activeHintIndex === index">
+                  <div class="oppia-editor-card-section e2e-test-hint-body-{{index}}">
+                    <oppia-hint-editor [hint]="hint"
+                                       [indexPlusOne]="index + 1"
+                                       (saveHint)="onSaveInlineHint()">
+                    </oppia-hint-editor>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </mat-card>
+  </div>
+</div>

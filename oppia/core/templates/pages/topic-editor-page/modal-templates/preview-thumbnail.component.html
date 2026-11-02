@@ -1,0 +1,17 @@
+<div class="oppia-thumbnail-container e2e-test-thumbnail-container"
+     [ngStyle]="{width: aspectRatio === '4:3' ? '248px' : '280px' }">
+  <oppia-thumbnail-display [classes]="['oppia-thumbnail-image']"
+                           [imgSrc]="editableThumbnailDataUrl"
+                           [background]="thumbnailBgColor"
+                           [aspectRatio]="'16:9'">
+  </oppia-thumbnail-display>
+  <div class="oppia-thumbnail-preview-title e2e-test-thumbnail-title">
+      {{ name }}
+  </div>
+  <div class="oppia-thumbnail-preview-footer">
+    {{ previewFooter }}
+  </div>
+  <div class="oppia-thumbnail-preview-description e2e-test-thumbnail-description">
+    {{ description }}
+  </div>
+</div>

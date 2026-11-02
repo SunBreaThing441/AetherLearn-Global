@@ -1,0 +1,21 @@
+<div class="subtopic-card e2e-test-subtopic-tile"
+     (click)="openSubtopicPage($event)"
+     (keydown.enter)="openSubtopicPage()"
+     [ngClass]="{'disabled-link': !classroomUrlFragment}"
+     tabindex="0">
+  <div class="subtopic-thumbnail e2e-test-subtopic-thumbnail"
+       [ngStyle]="{background: thumbnailBgColor}">
+    <img [src]="thumbnailUrl"
+         class="img-thumbnail"
+         alt=""
+         [ngStyle]="{background: thumbnailBgColor}">
+  </div>
+  <div class="subtopic-title">
+    <span *ngIf="!isHackySubtopicTitleTranslationDisplayed()">
+      {{ subtopicTitle }}
+    </span>
+    <span *ngIf="isHackySubtopicTitleTranslationDisplayed()">
+      {{ subtopicTitleTranslationKey | translate  }}
+    </span>
+  </div>
+</div>

@@ -1,0 +1,90 @@
+<div id="editorTabTourContentEditorTabContent" [hidden]="true">
+  <p tabindex="0">An Oppia exploration is divided into several 'cards'. The first part of a card is the <strong>content</strong>. Use the content section to set the scene. Tell the learner a story, give them some information, and then ask a relevant question.</p>
+</div>
+
+<div id="editorTabTourSlideStateInteractionEditorTabContent" [hidden]="true">
+  <p tabindex="0">After you've written the content of your conversation, choose an interaction type. An interaction is how you want your learner to respond to your question.</p>
+  <p tabindex="0">Oppia has several built-in interactions, including:</p>
+  <ul tabindex="0">
+    <li>Multiple Choice</li>
+    <li>Text/Number input</li>
+    <li>Code snippets</li>
+  </ul>
+  <p tabindex="0">and more.</p>
+</div>
+
+<div id="editorTabTourStateResponsesTabContent" [hidden]="true">
+  <p tabindex="0">
+    After the learner uses the interaction you created, it is your turn again to choose how your exploration will respond to their input. You can send a learner to a new card or have them repeat the same card, depending on how they answer.
+  </p>
+</div>
+
+<mat-card class="oppia-editor-card-with-avatar">
+  <div class="state-content-header-container" (click)="toggleConceptCard()">
+    <div class="state-content-header oppia-mobile-collapsible-card-header">
+      <h3 class="oppia-exp-content-card-header">Content</h3>
+      <i class="fa fa-caret-down"
+         *ngIf="!conceptCardIsShown"
+         aria-hidden="true">
+      </i>
+      <i class="fa fa-caret-up"
+         *ngIf="conceptCardIsShown"
+         aria-hidden="true">
+      </i>
+    </div>
+  </div>
+  <div class="oppia-mobile-collapsible-card-content" *ngIf="conceptCardIsShown" id="editorTabTourContentEditorTab">
+    <div class="oppia-editor-card-body oppia-editor-concept-container">
+      <img *ngIf="!windowIsNarrow" [src]="oppiaBlackImgUrl" alt="" class="oppia-editor-card-avatar">
+      <div id="tutorialStateContent" class="oppia-editor-card-section state-content-editor-parent-container">
+        <oppia-state-content-editor class="e2e-test-state-content-editor"
+                                    (saveStateContent)="sendOnSaveStateContent($event)"
+                                    [stateContentPlaceholder]="stateContentPlaceholder"
+                                    [stateContentSaveButtonPlaceholder]="stateContentSaveButtonPlaceholder">
+        </oppia-state-content-editor>
+      </div>
+    </div>
+  </div>
+</mat-card>
+
+<div id="editorTabTourSlideStateInteractionEditorTab">
+  <oppia-state-interaction-editor (onSaveStateContent)="sendOnSaveStateContent($event)"
+                                  (onSaveInteractionData)="sendOnSaveInteractionData($event)"
+                                  (onSaveNextContentIdIndex)="sendOnSaveNextContentIdIndex($event)"
+                                  (onSaveSolution)="sendOnSaveSolution($event)"
+                                  (recomputeGraph)="sendRecomputeGraph()"
+                                  [hidden]="!interactionIsShown">
+  </oppia-state-interaction-editor>
+</div>
+<div id="editorTabTourStateResponsesTab">
+  <div [hidden]="!interactionIdIsSet || currentStateIsTerminal">
+    <oppia-state-responses [addState]="addState"
+                           (navigateToState)="sendNavigateToState($event)"
+                           (onResponsesInitialized)="reinitializeEditor()"
+                           (onSaveInapplicableSkillMisconceptionIds)="sendOnSaveInapplicableSkillMisconceptionIds($event)"
+                           (onSaveInteractionAnswerGroups)="sendOnSaveInteractionAnswerGroups($event)"
+                           (onSaveInteractionDefaultOutcome)="sendOnSaveInteractionDefaultOutcome($event)"
+                           (onSaveNextContentIdIndex)="sendOnSaveNextContentIdIndex($event)"
+                           (onSaveSolicitAnswerDetails)="sendOnSaveSolicitAnswerDetails($event)"
+                           (refreshWarnings)="sendRefreshWarnings()">
+    </oppia-state-responses>
+    <div>
+      <oppia-state-hints-editor (onSaveNextContentIdIndex)="sendOnSaveNextContentIdIndex($event)"
+                                (onSaveSolution)="sendOnSaveSolution($event)"
+                                (onSaveHints)="sendOnSaveHints($event)">
+      </oppia-state-hints-editor>
+    </div>
+    <div *ngIf="currentInteractionCanHaveSolution">
+      <oppia-state-solution-editor (saveSolution)="sendOnSaveSolution($event)"
+                                   (refreshWarnings)="sendRefreshWarnings()">
+      </oppia-state-solution-editor>
+    </div>
+    <div *ngIf="explorationIsLinkedToStory">
+      <state-skill-editor (onSaveLinkedSkillId)="sendOnSaveLinkedSkillId($event)">
+      </state-skill-editor>
+    </div>
+  </div>
+  <div class="oppia-tour-empty-state-placeholder" *ngIf="!interactionIdIsSet || currentStateIsTerminal" tabindex="0">
+    Once you add an interaction, learner response options will appear here.
+  </div>
+</div>

@@ -1,0 +1,78 @@
+.aetherlearn-app-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+  color: #1e293b;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.aether-main-content {
+  flex: 1;
+  padding-bottom: 3rem;
+}
+
+.unesco-footer {
+  background: #0f172a;
+  color: #94a3b8;
+  padding: 1.5rem 0;
+  border-top: 1px solid #334155;
+  font-size: 0.85rem;
+}
+
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.footer-left strong {
+  color: #f1f5f9;
+}
+
+/* WCAG AAA High Contrast Theme */
+:host-context(body.high-contrast-mode) .aetherlearn-app-wrapper {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+:host-context(body.high-contrast-mode) .conversation-card,
+:host-context(body.high-contrast-mode) .lib-card,
+:host-context(body.high-contrast-mode) .exploration-card,
+:host-context(body.high-contrast-mode) .metric-card,
+:host-context(body.high-contrast-mode) .editor-section {
+  background: #111111 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+:host-context(body.high-contrast-mode) .choice-btn {
+  background: #111111 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+:host-context(body.high-contrast-mode) .choice-btn.selected {
+  background: #ffff00 !important;
+  color: #000000 !important;
+  border-color: #ffff00 !important;
+}
+
+:host-context(body.high-contrast-mode) .submit-btn,
+:host-context(body.high-contrast-mode) .play-btn,
+:host-context(body.high-contrast-mode) .resume-btn {
+  background: #ffff00 !important;
+  color: #000000 !important;
+  font-weight: 900 !important;
+}

@@ -1,0 +1,57 @@
+
+.oppia-learner-hint-and-solution-modal-title {
+  color: #c55f45;
+  font-family: 'Capriola', 'Roboto', 'Arial', sans-serif;
+  font-size: 1.25em;
+  font-weight: 400;
+  margin-top: 20px;
+  text-align: center;
+}
+
+.oppia-learner-hint-and-solution-modal-body {
+  margin: 20px 0;
+  word-wrap: break-word;
+}
+
+.modal-body {
+  max-height: calc(85vh - 125px);
+  overflow-y: auto;
+}
+
+.oppia-learner-solution-container {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.oppia-learner-solution-container > p {
+  color: #c55f45;
+  left: 50%;
+  margin-top: 10px;
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.mat-button.hint-display-modal-got-it-button {
+  background-color: #00645c !important;
+  color: white;
+  font-weight: 700;
+}
+
+.mat-button.hint-display-modal-got-it-button:focus {
+  outline: none !important;
+}
+
+.hint-modal-control-btn {
+  border: 1px solid #00645c !important;
+  color: #00645c;
+  font-weight: 700;
+  outline: none !important;
+}
+
+@media (max-width: 480px) {
+  .oppia-learner-solution-container > p {
+    margin-left: 10px;
+  }
+}

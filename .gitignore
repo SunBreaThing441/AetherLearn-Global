@@ -1,0 +1,24 @@
+# Dependencies & Package Managers
+**/node_modules/
+**/vendor/
+
+# Python caches & build artifacts
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# IDE & OS Metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log

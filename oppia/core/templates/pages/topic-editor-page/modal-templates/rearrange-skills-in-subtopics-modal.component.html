@@ -1,0 +1,118 @@
+<div>
+  <div class="modal-header">
+    <h3>
+      Subtopics & Skills
+    </h3>
+  </div>
+  <div class="modal-body subtopics">
+    <div class="subtopics-container" cdkDropListGroup>
+      <div class="empty-placeholder"></div>
+      <div class="item-flex-container">
+        <mat-card class="item-container uncategorized-skill-ids e2e-test-uncategorized-skills-container"
+                  [ngClass]="{'skills-valid': !uncategorizedSkillSummaries?.length, 'skills-invalid': uncategorizedSkillSummaries?.length}">
+          <strong>Uncategorized Skills</strong>
+          <div class="number-skills-container">
+            <span *ngIf="uncategorizedSkillSummaries?.length === 1"
+                  class="number-skills-text">
+              {{ uncategorizedSkillSummaries?.length }} Skill
+            </span>
+            <span *ngIf="!(uncategorizedSkillSummaries?.length === 1)"
+                  class="number-skills-text">
+              {{ uncategorizedSkillSummaries.length }} Skills
+            </span>
+          </div>
+          <div class="uncategorized-skills-container outside-container"
+               cdkDropList
+               [cdkDropListData]="uncategorizedSkillSummaries"
+               (cdkDropListDropped)="onMoveSkillEnd($event, null)">
+            <div class="skill-id"
+                      *ngFor="let skillSummary of uncategorizedSkillSummaries"
+                      cdkDrag
+                      (cdkDragStarted)="onMoveSkillStart(null, skillSummary)">
+              <div class="skill-card e2e-test-uncategorized-skill-card">
+                <a *ngIf="!isSkillDeleted(skillSummary)"
+                   class="skill-name"
+                   [href]="getSkillEditorUrl(skillSummary.getId())"
+                   target="_blank"
+                   rel="noopener">
+                   {{ skillSummary.getDescription() }}
+                </a>
+              </div>
+            </div>
+            <p class="intro-card-message e2e-test-no-uncategorized-skills"
+               *ngIf="uncategorizedSkillSummaries?.length === 0">
+              There are no unassigned skills left in the topic.
+            </p>
+          </div>
+        </mat-card>
+      </div>
+      <div *ngFor="let subtopic of subtopics"
+           class="item-flex-container">
+        <mat-card class="subtopic item-container">
+          <div class="subtopic-header"
+               (click)="editNameOfSubtopicWithId(subtopic.getId())">
+            <strong [ngbTooltip]="subtopic.getTitle()"
+                    placement="bottom"
+                    *ngIf="subtopic?.getTitle()?.length < 25">
+              {{ subtopic.getTitle() }} <mat-icon class="edit-icon-style">edit</mat-icon>
+            </strong>
+            <strong [ngbTooltip]="subtopic?.getTitle()"
+                    placement="bottom"
+                    *ngIf="subtopic?.getTitle().length >= 25">
+              {{ subtopic?.getTitle().substring(0,15) }}...
+            </strong>
+            <div class="number-skills-container">
+              <span *ngIf="subtopic.getSkillSummaries().length === 1"
+                    class="number-skills-text">
+                {{ subtopic?.getSkillSummaries().length }} Skill
+              </span>
+              <span *ngIf="!(subtopic?.getSkillSummaries().length === 1)"
+                    class="number-skills-text">
+                {{ subtopic?.getSkillSummaries().length }} Skills
+              </span>
+            </div>
+          </div>
+          <div *ngIf="subtopic.getId() === selectedSubtopicId">
+            <input type="text" class="e2e-test-rename-subtopic-field" [(ngModel)]="editableName" maxlength="{{maxCharsInSubtopicTitle}}">
+            <button class="btn btn-secondary"
+                    (click)="editNameOfSubtopicWithId(null)">
+              Cancel
+            </button>
+            <button class="btn btn-primary e2e-test-save-reassignments"
+                    (click)="updateSubtopicTitle(subtopic.getId())">
+              Save
+            </button>
+          </div>
+          <div class="subtopic-container outside-container e2e-test-subtopic-column"
+               cdkDropList
+               [cdkDropListData]="subtopic?.getSkillSummaries()"
+               (cdkDropListDropped)="onMoveSkillEnd($event, subtopic.getId())">
+            <div class="skill-id"
+                      *ngFor="let skillSummary of subtopic.getSkillSummaries()"
+                      cdkDrag
+                      (cdkDragStarted)="onMoveSkillStart(subtopic.getId(), skillSummary)">
+              <div class="skill-card">
+                <a [href]="getSkillEditorUrl(skillSummary?.getId())"
+                   class="skill-name e2e-test-subtopic-skill-description"
+                   target="_blank"
+                   rel="noopener">
+                  {{ skillSummary.getDescription() }}
+                </a>
+              </div>
+            </div>
+          </div>
+        </mat-card>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary"
+            (click)="cancel()">
+      Cancel
+    </button>
+    <button class="btn btn-success e2e-test-save-rearrange-skills"
+            (click)="confirm()">
+      Save
+    </button>
+  </div>
+</div>

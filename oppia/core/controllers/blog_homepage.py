@@ -1,0 +1,356 @@
+# Copyright 2021 The Oppia Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Controllers for the blog homepage."""
+
+from __future__ import annotations
+
+from core import feconf
+from core.constants import constants
+from core.controllers import acl_decorators, base
+from core.domain import blog_domain, blog_services, user_services
+
+from typing import Dict, Final, List, Optional, TypedDict
+
+BLOG_ADMIN: Final = feconf.ROLE_ID_BLOG_ADMIN
+BLOG_POST_EDITOR: Final = feconf.ROLE_ID_BLOG_POST_EDITOR
+MAX_POSTS_TO_RECOMMEND_AT_END_OF_BLOG_POST: Final = (
+    feconf.MAX_POSTS_TO_RECOMMEND_AT_END_OF_BLOG_POST
+)
+MAX_CHARS_IN_BLOG_POST_URL: Final = feconf.MAX_CHARS_IN_BLOG_POST_URL
+
+
+class BlogCardSummaryDict(TypedDict):
+    """Type for the dict representation of blog_card_summary_dict."""
+
+    id: str
+    title: str
+    summary: str
+    author_username: Optional[str]
+    url_fragment: str
+    tags: List[str]
+    thumbnail_filename: Optional[str]
+    last_updated: Optional[str]
+    published_on: Optional[str]
+    displayed_author_name: str
+
+
+class AuthorsBlogPostDict(TypedDict):
+    """Dict type for author's BlogPost object."""
+
+    id: str
+    title: str
+    displayed_author_name: str
+    content: str
+    url_fragment: str
+    tags: List[str]
+    thumbnail_filename: Optional[str]
+    last_updated: Optional[str]
+    published_on: Optional[str]
+
+
+def _get_blog_card_summary_dicts_for_homepage(
+    summaries: List[blog_domain.BlogPostSummary],
+) -> List[BlogCardSummaryDict]:
+    """Creates summary dicts for use in blog homepage.
+
+    Args:
+        summaries: list(BlogPostSummary). List of blog post summary
+            domain objects.
+
+    Returns:
+        list(dict). The list of blog post summary dicts.
+    """
+    summary_dicts: List[BlogCardSummaryDict] = []
+    for summary in summaries:
+        summary_dict = summary.to_dict()
+        user_settings = user_services.get_user_settings(
+            summary_dict['author_id'], strict=False
+        )
+        author_details = blog_services.get_blog_author_details(
+            summary_dict['author_id'], strict=False
+        )
+
+        if user_settings:
+            card_summary_dict: BlogCardSummaryDict = {
+                'id': summary_dict['id'],
+                'title': summary_dict['title'],
+                'summary': summary_dict['summary'],
+                'author_username': user_settings.username,
+                'tags': summary_dict['tags'],
+                'thumbnail_filename': summary_dict['thumbnail_filename'],
+                'url_fragment': summary_dict['url_fragment'],
+                'published_on': summary_dict['published_on'],
+                'last_updated': summary_dict['last_updated'],
+                'displayed_author_name': author_details.displayed_author_name,
+            }
+        else:
+            card_summary_dict = {
+                'id': summary_dict['id'],
+                'title': summary_dict['title'],
+                'summary': summary_dict['summary'],
+                'author_username': 'author account deleted',
+                'tags': summary_dict['tags'],
+                'thumbnail_filename': summary_dict['thumbnail_filename'],
+                'url_fragment': summary_dict['url_fragment'],
+                'published_on': summary_dict['published_on'],
+                'last_updated': summary_dict['last_updated'],
+                'displayed_author_name': author_details.displayed_author_name,
+            }
+        summary_dicts.append(card_summary_dict)
+    return summary_dicts
+
+
+class BlogHomepageDataHandlerNormalizedRequestDict(TypedDict):
+    """Dict representation of BlogHomepageDataHandler's normalized_request
+    dictionary.
+    """
+
+    offset: str
+
+
+class BlogHomepageDataHandler(
+    base.BaseHandler[
+        Dict[str, str], BlogHomepageDataHandlerNormalizedRequestDict
+    ]
+):
+    """Provides blog cards data and default tags data for the blog homepage."""
+
+    GET_HANDLER_ERROR_RETURN_TYPE = feconf.HANDLER_TYPE_JSON
+    URL_PATH_ARGS_SCHEMAS: Dict[str, str] = {}
+    HANDLER_ARGS_SCHEMAS = {
+        'GET': {
+            'offset': {
+                'schema': {'type': 'int'},
+            }
+        }
+    }
+
+    @acl_decorators.open_access
+    def get(self) -> None:
+        """Retrieves blog post summaries for the blog homepage."""
+        assert self.normalized_request is not None
+        offset = int(self.normalized_request['offset'])
+        published_post_summaries = (
+            blog_services.get_published_blog_post_summaries(offset)
+        )
+        published_post_summary_dicts = []
+        if published_post_summaries:
+            published_post_summary_dicts = (
+                _get_blog_card_summary_dicts_for_homepage(
+                    published_post_summaries
+                )
+            )
+        number_of_published_blog_post_summaries = (
+            blog_services.get_total_number_of_published_blog_post_summaries()
+        )
+        list_of_default_tags = constants.LIST_OF_DEFAULT_TAGS_FOR_BLOG_POST
+        self.values.update(
+            {
+                'no_of_blog_post_summaries': (
+                    number_of_published_blog_post_summaries
+                ),
+                'blog_post_summary_dicts': published_post_summary_dicts,
+                'list_of_default_tags': list_of_default_tags,
+            }
+        )
+        self.render_json(self.values)
+
+
+class BlogPostDataHandler(base.BaseHandler[Dict[str, str], Dict[str, str]]):
+    """Provides blog post data for the blog post page."""
+
+    GET_HANDLER_ERROR_RETURN_TYPE = feconf.HANDLER_TYPE_JSON
+    URL_PATH_ARGS_SCHEMAS = {
+        'blog_post_url': {
+            'schema': {
+                'type': 'basestring',
+                'validators': [
+                    {
+                        'id': 'has_length_at_most',
+                        'max_value': MAX_CHARS_IN_BLOG_POST_URL,
+                    },
+                    {
+                        'id': 'has_length_at_least',
+                        'min_value': constants.BLOG_POST_ID_LENGTH,
+                    },
+                ],
+            },
+        }
+    }
+    HANDLER_ARGS_SCHEMAS: Dict[str, Dict[str, str]] = {'GET': {}}
+
+    @acl_decorators.open_access
+    def get(self, blog_post_url: str) -> None:
+        """Retrieves a specific blog post and its related recommendations.
+
+        Args:
+            blog_post_url: str. The URL of the blog post.
+
+        Raises:
+            NotFoundException. The blog post page with the given url
+                doesn't exist.
+        """
+        blog_post = blog_services.get_blog_post_by_url_fragment(blog_post_url)
+        if not blog_post:
+            raise self.NotFoundException(
+                Exception(
+                    'The blog post page with the given url doesn\'t exist.'
+                )
+            )
+        user_settings = user_services.get_user_settings(
+            blog_post.author_id, strict=False
+        )
+        if user_settings:
+            author_username = user_settings.username
+        else:
+            author_username = 'author account deleted'
+        author_details = blog_services.get_blog_author_details(
+            blog_post.author_id, strict=False
+        )
+
+        blog_post_dict = blog_post.to_dict()
+        authors_blog_post_dict: AuthorsBlogPostDict = {
+            'id': blog_post_dict['id'],
+            'title': blog_post_dict['title'],
+            'content': blog_post_dict['content'],
+            'thumbnail_filename': blog_post_dict['thumbnail_filename'],
+            'tags': blog_post_dict['tags'],
+            'url_fragment': blog_post_dict['url_fragment'],
+            'published_on': blog_post_dict['published_on'],
+            'last_updated': blog_post_dict['last_updated'],
+            'displayed_author_name': author_details.displayed_author_name,
+        }
+        # We fetch 1 more than the required blog post summaries as the result
+        # might contain the blog post which is currently being viewed.
+        target_tags = authors_blog_post_dict['tags']
+        limit = MAX_POSTS_TO_RECOMMEND_AT_END_OF_BLOG_POST + 1
+        summaries = blog_services.get_published_blog_post_summaries_by_tags(
+            target_tags, limit
+        )
+
+        if len(summaries) < MAX_POSTS_TO_RECOMMEND_AT_END_OF_BLOG_POST + 1:
+            summary_ids = [summary.id for summary in summaries]
+            # We fetch more blog post summaries than the deficit as the result
+            # might contain the blog post summaries which are already fetched.
+            size = MAX_POSTS_TO_RECOMMEND_AT_END_OF_BLOG_POST + len(summaries)
+            resultant_summaries = (
+                blog_services.get_published_blog_post_summaries_by_user_id(
+                    blog_post.author_id, size
+                )
+            )
+            summaries.extend(
+                list(
+                    filter(
+                        lambda i: i.id not in summary_ids, resultant_summaries
+                    )
+                )
+            )
+        if len(summaries) < MAX_POSTS_TO_RECOMMEND_AT_END_OF_BLOG_POST + 1:
+            summary_ids = [summary.id for summary in summaries]
+            # We fetch more blog post summaries than the deficit as the result
+            # might contain the blog post summaries which are already fetched.
+            size = MAX_POSTS_TO_RECOMMEND_AT_END_OF_BLOG_POST + len(summaries)
+            resultant_summaries = (
+                blog_services.get_published_blog_post_summaries(0, size)
+            )
+            summaries.extend(
+                list(
+                    filter(
+                        lambda i: i.id not in summary_ids, resultant_summaries
+                    )
+                )
+            )
+
+        for summary in summaries[:MAX_POSTS_TO_RECOMMEND_AT_END_OF_BLOG_POST]:
+            if summary.id == authors_blog_post_dict['id']:
+                summaries.remove(summary)
+                break
+
+        self.values.update(
+            {
+                'author_username': author_username,
+                'blog_post_dict': authors_blog_post_dict,
+                'summary_dicts': _get_blog_card_summary_dicts_for_homepage(
+                    summaries[:MAX_POSTS_TO_RECOMMEND_AT_END_OF_BLOG_POST]
+                ),
+            }
+        )
+        self.render_json(self.values)
+
+
+class AuthorsPageHandler(base.BaseHandler[Dict[str, str], Dict[str, str]]):
+    """Provides blog cards data and author data for the authors page."""
+
+    GET_HANDLER_ERROR_RETURN_TYPE = feconf.HANDLER_TYPE_JSON
+    URL_PATH_ARGS_SCHEMAS = {
+        'author_username': {'schema': {'type': 'basestring'}}
+    }
+    HANDLER_ARGS_SCHEMAS = {
+        'GET': {
+            'offset': {
+                'schema': {'type': 'basestring'},
+            }
+        },
+    }
+
+    @acl_decorators.open_access
+    def get(self, author_username: str) -> None:
+        """Retrieves blog post summaries and specific author details.
+
+        Args:
+            author_username: str. The username of the author.
+
+        Raises:
+            Exception. No user settings found for the given author_username.
+        """
+        assert self.normalized_request is not None
+        offset = int(self.normalized_request['offset'])
+
+        user_settings = user_services.get_user_settings_from_username(
+            author_username
+        )
+        if user_settings is None:
+            raise Exception(
+                'No user settings found for the given author_username: %s'
+                % author_username
+            )
+
+        author_details_dict = blog_services.get_blog_author_details(
+            user_settings.user_id
+        ).to_dict()
+        num_of_published_blog_post_summaries = blog_services.get_total_number_of_published_blog_post_summaries_by_author(
+            user_settings.user_id
+        )
+        blog_post_summaries = (
+            blog_services.get_published_blog_post_summaries_by_user_id(
+                user_settings.user_id,
+                feconf.MAX_NUM_CARDS_TO_DISPLAY_ON_BLOG_AUTHOR_PROFILE_PAGE,
+                offset,
+            )
+        )
+        blog_post_summary_dicts = []
+        if blog_post_summaries:
+            blog_post_summary_dicts = _get_blog_card_summary_dicts_for_homepage(
+                blog_post_summaries
+            )
+
+        self.values.update(
+            {
+                'author_details': author_details_dict,
+                'no_of_blog_post_summaries': num_of_published_blog_post_summaries,
+                'summary_dicts': blog_post_summary_dicts,
+            }
+        )
+        self.render_json(self.values)

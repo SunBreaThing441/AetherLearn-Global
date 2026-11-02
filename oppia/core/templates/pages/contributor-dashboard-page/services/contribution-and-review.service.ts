@@ -1,0 +1,574 @@
+// Copyright 2014 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Service for fetching and resolving suggestions.
+ */
+
+import {Injectable} from '@angular/core';
+import {AppConstants} from 'app.constants';
+import {
+  ContributionAndReviewBackendApiService,
+  ContributorCertificateResponse,
+} from './contribution-and-review-backend-api.service';
+import {SuggestionBackendDict} from 'domain/suggestion/suggestion.model';
+import {StateBackendDict} from 'domain/state/state.model';
+import {ImagesData} from 'services/image-local-storage.service';
+import {ReadOnlyExplorationBackendApiService} from 'domain/exploration/read-only-exploration-backend-api.service';
+import {ComputeGraphService} from 'services/compute-graph.service';
+import {LoggerService} from 'services/contextual/logger.service';
+import {UrlInterpolationService} from 'domain/utilities/url-interpolation.service';
+import {States} from 'domain/exploration/states.model';
+import {Exploration} from 'domain/exploration/exploration.model';
+import {ContributorDashboardConstants} from 'pages/contributor-dashboard-page/contributor-dashboard-page.constants';
+
+export interface OpportunityDict {
+  skill_id: string;
+  skill_description: string;
+}
+
+// Encapsulates the state necessary to fetch a particular suggestion from the
+// backend.
+class SuggestionFetcher {
+  // Type of suggestion to fetch.
+  type: string;
+  // The current offset, i.e. the number of items to skip (from the beginning of
+  // all matching results) in the next fetch.
+  offset: number;
+  sortKey: string;
+  // Cache of suggestions.
+  suggestionIdToDetails: SuggestionDetailsDict;
+
+  constructor(type: string) {
+    this.type = type;
+    this.offset = 0;
+    this.sortKey = '';
+    this.suggestionIdToDetails = {};
+  }
+}
+
+interface SuggestionDetailsDict {
+  [targetId: string]: {
+    suggestion: SuggestionBackendDict;
+    details: OpportunityDict;
+  };
+}
+
+// Represents a client-facing response to a fetch suggestion query.
+export interface FetchSuggestionsResponse {
+  // A dict mapping suggestion ID to suggestion metadata.
+  suggestionIdToDetails: SuggestionDetailsDict;
+  // Whether there are more results to return after the last query.
+  more: boolean;
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class ContributionAndReviewService {
+  // This property is initialized using async methods
+  // and we need to do non-null assertion. For more information, see
+  // https://github.com/oppia/oppia/wiki/Guide-on-defining-types#ts-7-1
+  private activeTabType!: string;
+  private activeSuggestionType!: string;
+
+  constructor(
+    private contributionAndReviewBackendApiService: ContributionAndReviewBackendApiService,
+    private readOnlyExplorationBackendApiService: ReadOnlyExplorationBackendApiService,
+    private computeGraphService: ComputeGraphService,
+    private loggerService: LoggerService,
+    private urlInterpolationService: UrlInterpolationService
+  ) {}
+
+  getActiveTabType(): string {
+    return this.activeTabType;
+  }
+
+  setActiveTabType(activeTabType: string): void {
+    this.activeTabType = activeTabType;
+  }
+
+  getActiveSuggestionType(): string {
+    return this.activeSuggestionType;
+  }
+
+  setActiveSuggestionType(activeSuggestionType: string): void {
+    this.activeSuggestionType = activeSuggestionType;
+  }
+
+  private userCreatedQuestionFetcher: SuggestionFetcher = new SuggestionFetcher(
+    'SUBMITTED_QUESTION_SUGGESTIONS'
+  );
+
+  private reviewableQuestionFetcher: SuggestionFetcher = new SuggestionFetcher(
+    'REVIEWABLE_QUESTION_SUGGESTIONS'
+  );
+
+  private userCreatedTranslationFetcher: SuggestionFetcher =
+    new SuggestionFetcher('SUBMITTED_TRANSLATION_SUGGESTIONS');
+
+  private reviewableTranslationFetcher: SuggestionFetcher =
+    new SuggestionFetcher('REVIEWABLE_TRANSLATION_SUGGESTIONS');
+
+  /**
+   * Fetches suggestions from the backend.
+   *
+   * @param {SuggestionFetcher} fetcher - The fetcher for a particular
+   *   suggestion type.
+   * @param {boolean} shouldResetOffset - Whether to reset the input fetcher's
+   *   offset to 0 and clear the fetcher's cache. Set this to true to fetch
+   *   results starting from the beginning of all results matching the query.
+   * @returns {Promise<FetchSuggestionsResponse>}
+   */
+  private async fetchSuggestionsAsync(
+    fetcher: SuggestionFetcher,
+    shouldResetOffset: boolean,
+    entityId: string | null,
+    topicName: string | null,
+    targetType?: string
+  ): Promise<FetchSuggestionsResponse> {
+    if (shouldResetOffset) {
+      // Handle the case where we need to fetch starting from the beginning.
+      fetcher.offset = 0;
+      fetcher.suggestionIdToDetails = {};
+    }
+    const currentCacheSize: number = Object.keys(
+      fetcher.suggestionIdToDetails
+    ).length;
+    return this.contributionAndReviewBackendApiService
+      .fetchSuggestionsAsync(
+        fetcher.type,
+        // Fetch up to two pages at a time to compute if we have more results.
+        // The first page of results is returned to the caller and the second
+        // page is cached.
+        AppConstants.OPPORTUNITIES_PAGE_SIZE * 2 - currentCacheSize,
+        fetcher.offset,
+        fetcher.sortKey,
+        entityId,
+        topicName,
+        targetType
+      )
+      .then(responseBody => {
+        const responseSuggestionIdToDetails = fetcher.suggestionIdToDetails;
+        fetcher.suggestionIdToDetails = {};
+        const targetIdToDetails = responseBody.target_id_to_opportunity_dict;
+        responseBody.suggestions.forEach(suggestion => {
+          const suggestionDetails = {
+            suggestion: suggestion,
+            details: targetIdToDetails[suggestion.target_id],
+          };
+          const responseSize: number = Object.keys(
+            responseSuggestionIdToDetails
+          ).length;
+          if (responseSize < AppConstants.OPPORTUNITIES_PAGE_SIZE) {
+            // Populate the response with up to a page's worth of results.
+            responseSuggestionIdToDetails[suggestion.suggestion_id] =
+              suggestionDetails;
+          } else {
+            // Cache the 2nd page.
+            fetcher.suggestionIdToDetails[suggestion.suggestion_id] =
+              suggestionDetails;
+          }
+        });
+        fetcher.offset = responseBody.next_offset;
+        return {
+          suggestionIdToDetails: responseSuggestionIdToDetails,
+          more: Object.keys(fetcher.suggestionIdToDetails).length > 0,
+        };
+      });
+  }
+
+  async fetchTranslationSuggestionsAsync(
+    entityId: string,
+    targetType?: string
+  ): Promise<FetchSuggestionsResponse> {
+    // Suggestions are ordered by the state they belong to, which only an
+    // exploration has, so the exploration is fetched for that entity type
+    // alone. Suggestions of every other entity type keep the order the
+    // backend returned them in.
+    const exploration =
+      targetType === undefined ||
+      targetType === AppConstants.ENTITY_TYPE.EXPLORATION
+        ? Exploration.createFromExplorationBackendResponse(
+            await this.readOnlyExplorationBackendApiService.fetchExplorationAsync(
+              entityId,
+              null
+            ),
+            this.loggerService,
+            this.urlInterpolationService
+          )
+        : null;
+
+    return this.contributionAndReviewBackendApiService
+      .fetchSuggestionsAsync(
+        'REVIEWABLE_TRANSLATION_SUGGESTIONS',
+        null,
+        0,
+        AppConstants.SUGGESTIONS_SORT_KEY_DATE,
+        entityId,
+        null,
+        targetType
+      )
+      .then(fetchSuggestionsResponse => {
+        const suggestions = exploration
+          ? this.sortTranslationSuggestionsByState(
+              fetchSuggestionsResponse.suggestions,
+              exploration.getStates(),
+              exploration.initStateName
+            )
+          : fetchSuggestionsResponse.suggestions;
+        const responseSuggestionIdToDetails: SuggestionDetailsDict = {};
+        suggestions.forEach(suggestion => {
+          responseSuggestionIdToDetails[suggestion.suggestion_id] = {
+            suggestion: suggestion,
+            details:
+              fetchSuggestionsResponse.target_id_to_opportunity_dict[
+                suggestion.target_id
+              ],
+          };
+        });
+        return {
+          suggestionIdToDetails: responseSuggestionIdToDetails,
+          more: false,
+        };
+      });
+  }
+
+  sortTranslationSuggestionsByState(
+    translationSuggestions: SuggestionBackendDict[],
+    states: States,
+    initStateName: string | null
+  ): SuggestionBackendDict[] {
+    if (!initStateName) {
+      return translationSuggestions;
+    }
+
+    const stateNamesInOrder =
+      this.computeGraphService.computeBfsTraversalOfStates(
+        initStateName,
+        states,
+        initStateName
+      );
+    const translationSuggestionsByState =
+      ContributionAndReviewService.groupTranslationSuggestionsByState(
+        translationSuggestions
+      );
+    const sortedTranslationCards: SuggestionBackendDict[] = [];
+
+    for (const stateName of stateNamesInOrder) {
+      const cardsForState = translationSuggestionsByState.get(stateName) || [];
+      cardsForState.sort(
+        ContributionAndReviewService.compareTranslationSuggestions
+      );
+      sortedTranslationCards.push(...cardsForState);
+    }
+
+    // Generic cards represent exploration-wide metadata translations (such as
+    // title and objective) that do not belong to any specific exploration state.
+    // Based on the consensus from the product and UX team (Sean and Aanu),
+    // these generic cards must be sorted independently and prepended at the
+    // beginning of the sorted state-specific cards list. This separate ordering is
+    // intentional to provide translators with a general understanding of the
+    // storyline before they begin translations of the state-specific lesson content.
+    const genericCards =
+      translationSuggestionsByState.get(
+        AppConstants.DEFAULT_SUGGESTION_STATE_NAME
+      ) || [];
+    genericCards.sort(
+      ContributionAndReviewService.compareTranslationSuggestions
+    );
+    sortedTranslationCards.unshift(...genericCards);
+
+    return sortedTranslationCards;
+  }
+
+  private static groupTranslationSuggestionsByState(
+    translationSuggestions: SuggestionBackendDict[]
+  ): Map<string, SuggestionBackendDict[]> {
+    const translationSuggestionsByState = new Map<
+      string,
+      SuggestionBackendDict[]
+    >();
+
+    for (const translationSuggestion of translationSuggestions) {
+      const stateName = translationSuggestion.change_cmd.state_name;
+      const suggestionsForState =
+        translationSuggestionsByState.get(stateName) || [];
+      suggestionsForState.push(translationSuggestion);
+      translationSuggestionsByState.set(stateName, suggestionsForState);
+    }
+    return translationSuggestionsByState;
+  }
+
+  // Compares translation suggestions based on type and index.
+  private static compareTranslationSuggestions(
+    cardA: SuggestionBackendDict,
+    cardB: SuggestionBackendDict
+  ): number {
+    const cardATypeOrder =
+      ContributionAndReviewService.getTranslationContentTypeOrder(
+        cardA.change_cmd.content_id
+      );
+    const cardBTypeOrder =
+      ContributionAndReviewService.getTranslationContentTypeOrder(
+        cardB.change_cmd.content_id
+      );
+
+    if (cardATypeOrder !== cardBTypeOrder) {
+      return cardATypeOrder - cardBTypeOrder;
+    } else {
+      const cardAIndex =
+        ContributionAndReviewService.getTranslationContentIndex(
+          cardA.change_cmd.content_id
+        );
+      const cardBIndex =
+        ContributionAndReviewService.getTranslationContentIndex(
+          cardB.change_cmd.content_id
+        );
+      return cardAIndex - cardBIndex;
+    }
+  }
+
+  // Returns the type order for a given content ID.
+  private static getTranslationContentTypeOrder(contentId: string): number {
+    const contentOrders: Map<string, number> = new Map([
+      ['content', 0],
+      ['interaction', 1],
+      ['feedback', 2],
+      ['default', 3],
+      ['hints', 4],
+      ['solution', 5],
+    ]);
+    const type = contentId.split('_')[0];
+    return contentOrders.get(type) ?? Number.MAX_SAFE_INTEGER;
+  }
+
+  // Returns index for a given content ID.
+  private static getTranslationContentIndex(contentId: string): number {
+    const index = parseInt(contentId.split('_')[1]);
+    return isNaN(index) ? Number.MAX_SAFE_INTEGER : index;
+  }
+
+  async getUserCreatedQuestionSuggestionsAsync(
+    shouldResetOffset: boolean = true,
+    sortKey: string
+  ): Promise<FetchSuggestionsResponse> {
+    this.userCreatedQuestionFetcher.sortKey = sortKey;
+    return this.fetchSuggestionsAsync(
+      this.userCreatedQuestionFetcher,
+      shouldResetOffset,
+      null,
+      null
+    );
+  }
+
+  async getReviewableQuestionSuggestionsAsync(
+    shouldResetOffset: boolean = true,
+    sortKey: string,
+    topicName: string | null
+  ): Promise<FetchSuggestionsResponse> {
+    this.reviewableQuestionFetcher.sortKey = sortKey;
+    return this.fetchSuggestionsAsync(
+      this.reviewableQuestionFetcher,
+      shouldResetOffset,
+      null,
+      topicName
+    );
+  }
+
+  async getUserCreatedTranslationSuggestionsAsync(
+    shouldResetOffset: boolean = true,
+    sortKey: string,
+    targetType?: string
+  ): Promise<FetchSuggestionsResponse> {
+    this.userCreatedTranslationFetcher.sortKey = sortKey;
+    return this.fetchSuggestionsAsync(
+      this.userCreatedTranslationFetcher,
+      shouldResetOffset,
+      null,
+      null,
+      targetType
+    );
+  }
+
+  async getReviewableTranslationSuggestionsAsync(
+    shouldResetOffset: boolean = true,
+    sortKey: string,
+    entityId?: string,
+    targetType?: string
+  ): Promise<FetchSuggestionsResponse> {
+    this.reviewableTranslationFetcher.sortKey = sortKey;
+    if (entityId) {
+      return this.fetchTranslationSuggestionsAsync(entityId, targetType);
+    }
+    return this.fetchSuggestionsAsync(
+      this.reviewableTranslationFetcher,
+      shouldResetOffset,
+      null,
+      null,
+      targetType
+    );
+  }
+
+  /**
+   * Reviews a translation suggestion of any entity type. The backend exposes
+   * one suggestion action endpoint per target type, so the endpoint is chosen
+   * from the suggestion's own target type and callers do not branch on it.
+   *
+   * A commit message is only sent for explorations. Accepting an exploration
+   * translation writes it into a new version of the exploration, which needs a
+   * commit message, while accepting a translation of any other entity type
+   * does not create a version.
+   */
+  reviewTranslationSuggestion(
+    targetType: string,
+    targetId: string,
+    suggestionId: string,
+    action: string,
+    reviewMessage: string,
+    commitMessage: string | null,
+    onSuccess: (suggestionId: string) => void,
+    onFailure: (errorMessage: string) => void
+  ): Promise<void> {
+    if (targetType === AppConstants.ENTITY_TYPE.SKILL) {
+      return this.contributionAndReviewBackendApiService
+        .reviewSkillSuggestionAsync(targetId, suggestionId, {
+          action: action,
+          review_message: reviewMessage,
+        })
+        .then(
+          () => {
+            onSuccess(suggestionId);
+          },
+          // The skill endpoint reports failures without a message, so a
+          // generic one is supplied to keep the caller's handling uniform.
+          () => {
+            onFailure(
+              ContributorDashboardConstants.SUGGESTION_REVIEW_FAILURE_MESSAGE
+            );
+          }
+        );
+    }
+
+    return this.contributionAndReviewBackendApiService
+      .reviewExplorationSuggestionAsync(targetId, suggestionId, {
+        action: action,
+        review_message: reviewMessage,
+        commit_message: commitMessage,
+      })
+      .then(
+        () => {
+          onSuccess(suggestionId);
+        },
+        errorResponse => {
+          onFailure(errorResponse.error.error);
+        }
+      );
+  }
+
+  reviewQuestionSuggestion(
+    targetId: string,
+    suggestionId: string,
+    action: string,
+    reviewMessage: string,
+    skillDifficulty: number,
+    onSuccess: (suggestionId: string) => void,
+    onFailure: () => void
+  ): Promise<void> {
+    return this.contributionAndReviewBackendApiService
+      .reviewSkillSuggestionAsync(targetId, suggestionId, {
+        action: action,
+        review_message: reviewMessage,
+        skill_difficulty: skillDifficulty,
+      })
+      .then(
+        () => {
+          onSuccess(suggestionId);
+        },
+        () => {
+          onFailure && onFailure();
+        }
+      );
+  }
+
+  async updateTranslationSuggestionAsync(
+    suggestionId: string,
+    translationHtml: string,
+    onSuccess: () => void,
+    onFailure: (error: Error) => void
+  ): Promise<void> {
+    const requestBody = {
+      translation_html: translationHtml,
+    };
+
+    return this.contributionAndReviewBackendApiService
+      .updateTranslationSuggestionAsync(suggestionId, requestBody)
+      .then(
+        () => {
+          onSuccess();
+        },
+        error => onFailure && onFailure(error)
+      );
+  }
+
+  async updateQuestionSuggestionAsync(
+    suggestionId: string,
+    skillDifficulty: number,
+    questionStateData: StateBackendDict,
+    nextContentIdIndex: number,
+    inapplicableSkillMisconceptionIds: string[],
+    imagesData: ImagesData[],
+    onSuccess: (suggestionId: string) => void,
+    onFailure: (suggestionId: string) => void
+  ): Promise<void> {
+    const payload = {
+      skill_difficulty: skillDifficulty,
+      question_state_data: questionStateData,
+      next_content_id_index: nextContentIdIndex,
+      inapplicable_skill_misconception_ids: inapplicableSkillMisconceptionIds,
+    };
+    const requestBody = new FormData();
+    requestBody.append('payload', JSON.stringify(payload));
+    imagesData.forEach(obj => {
+      if (obj.imageBlob !== null) {
+        requestBody.append(obj.filename, obj.imageBlob);
+      }
+    });
+
+    return this.contributionAndReviewBackendApiService
+      .updateQuestionSuggestionAsync(suggestionId, requestBody)
+      .then(
+        () => {
+          onSuccess(suggestionId);
+        },
+        () => onFailure && onFailure(suggestionId)
+      );
+  }
+
+  async downloadContributorCertificateAsync(
+    username: string,
+    suggestionType: string,
+    languageCode: string | null,
+    fromDate: string,
+    toDate: string
+  ): Promise<ContributorCertificateResponse> {
+    return this.contributionAndReviewBackendApiService.downloadContributorCertificateAsync(
+      username,
+      suggestionType,
+      languageCode,
+      fromDate,
+      toDate
+    );
+  }
+}

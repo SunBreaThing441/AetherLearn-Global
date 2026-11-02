@@ -1,0 +1,39 @@
+<div #dropdown class="oppia-translation-topic-selector-container e2e-test-topic-selector">
+  <div class="oppia-translation-topic-selector-inner-container e2e-test-topic-selector-selected"
+       tabindex="0"
+       (keydown.enter)="toggleDropdown()"
+       (click)="toggleDropdown()">
+    {{activeTopicName}}
+    <span class="fas fa-caret-down oppia-translation-topic-selector-inner-container-arrow" [ngStyle]="{ 'transform': dropdownShown ? 'scaleY(-1)' : 'scaleY(1)' }">
+    </span>
+  </div>
+
+  <div *ngIf="dropdownShown" class="oppia-translation-topic-selector-dropdown-container e2e-test-topic-selector-dropdown">
+    <!-- TODO(#15648): Re-enable "All Topics" after fetching latency is fixed. -->
+    <!-- <div class="oppia-translation-topic-selector-dropdown-label">All Topics</div> -->
+    <ng-container *ngFor="let subject of topicsPerClassroomMap | keyvalue">
+      <ng-container *ngIf="subject.key !== ''; else noClassroomTopics">
+        <div class="oppia-translation-topic-selector-dropdown-label">{{subject.key}}</div>
+        <div class="oppia-translation-topic-selector-dropdown-option oppia-translation-topic-selector-dropdown-option-indented e2e-test-topic-selector-option"
+             *ngFor="let option of subject.value"
+             (click)="selectOption(option)"
+             (keydown.enter)="selectOption(option)"
+             tabindex="0"
+             [ngClass]="{'oppia-translation-topic-selector-dropdown-option-selected' : option === activeTopicName}">
+          {{option}}
+        </div>
+      </ng-container>
+
+      <ng-template #noClassroomTopics>
+        <div class="oppia-translation-topic-selector-dropdown-option e2e-test-topic-selector-option"
+             *ngFor="let option of subject.value"
+             (click)="selectOption(option)"
+             (keydown.enter)="selectOption(option)"
+             tabindex="0"
+             [ngClass]="{'oppia-translation-topic-selector-dropdown-option-selected' : option === activeTopicName}">
+          {{option}}
+        </div>
+      </ng-template>
+    </ng-container>
+  </div>
+</div>

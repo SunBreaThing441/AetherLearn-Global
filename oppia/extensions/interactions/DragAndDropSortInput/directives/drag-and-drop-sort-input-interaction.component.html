@@ -1,0 +1,61 @@
+<form (submit)="submitAnswer()">
+  <div class="drag-and-drop-sort-container conversation-skin-interaction-container">
+    <!-- Drag and drop, when we allow multiple items in same position of list -->
+    <div *ngIf="allowMultipleItemsInSamePosition" cdkDropList (cdkDropListDropped)="dropList($event)">
+      <ng-container cdkDropListGroup>
+        <div *ngFor="let items of multipleItemsInSamePositionArray; let idx = index"
+             class="child-dnd child-dnd-{{idx}}">
+          <div cdkDrag
+               cdkDropList
+               [cdkDropListData]="items"
+               (cdkDropListExited)="hideElement($event)"
+               [ngClass]="{
+                 'child-dnd-border': isChildElementHaveBorder(idx),
+                 'child-dnd-borderless': !isChildElementHaveBorder(idx) || isChildElementHaveZeroHeight(idx),
+                 'zero-height': isChildElementHaveZeroHeight(idx)
+               }"
+               [class]="isChildElementHaveBorder(idx) ? 'child-dnd-border' : 'child-dnd-borderless'"
+               (cdkDropListDropped)="dropItemInAnyList($event)">
+            <div class="root-dnd-placeholder"
+                 [ngStyle]="{ 'height': (rootHeight-30) + 'px' }"
+                 *cdkDragPlaceholder>
+            </div>
+            <div *ngIf="isChildElementHaveBorder(idx) && items.length > 1"
+                 class="example-handle"
+                 cdkDragHandle
+                 (mouseover)="addHighlight(idx)"
+                 (mouseout)="removeHighlight()"
+                 (mousedown)="setRootPlaceHolderHeight(idx)">
+            </div>
+            <div *ngFor="let item of items; let i = index"
+                 class="child-dnd-item-box"
+                 tabindex="0"
+                 [ngClass]="{'highlight-group': idx === highlightedGroup}"
+                 cdkDrag
+                 #listItem
+                 (keydown)="handleKeyDownMultipleItems($event, idx, i)">
+              <div class="child-dnd-placeholder" *cdkDragPlaceholder></div>
+              <oppia-rte-output-display [rteString]="item"></oppia-rte-output-display>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+    <!-- Drag and drop, when we allow only single item in same position of list -->
+    <div *ngIf="!allowMultipleItemsInSamePosition"
+         class="child-dnd-single-item"
+         (cdkDropListDropped)="dropItemInSameList($event)"
+         cdkDropList>
+      <div tabindex="0"
+           class="child-dnd-item-box e2e-test-drag-and-drop-sort-item"
+           *ngFor="let item of singleItemInSamePositionArray; let i = index"
+           cdkDrag
+           role="listitem"
+           #listItem
+           (keydown)="handleKeyDown($event, i)">
+        <div class="child-dnd-single-item-placeholder" *cdkDragPlaceholder></div>
+        <oppia-rte-output-display [rteString]="item"></oppia-rte-output-display>
+      </div>
+    </div>
+  </div>
+</form>

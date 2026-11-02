@@ -1,0 +1,38 @@
+<svg width="288" height="64" viewBox="0 0 288 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Glowing Celestial Orbital Nexus Emblem -->
+  <g transform="translate(4, 2)">
+    <!-- Outer Orbital Ring -->
+    <ellipse cx="28" cy="28" rx="26" ry="10" stroke="#00FFC6" stroke-width="2.5" stroke-dasharray="4 2" transform="rotate(-25 28 28)" opacity="0.85"/>
+    <!-- Middle Orbital Ring -->
+    <ellipse cx="28" cy="28" rx="24" ry="9" stroke="#00A8FF" stroke-width="2" transform="rotate(35 28 28)" opacity="0.75"/>
+    <!-- Inner Energy Glow -->
+    <circle cx="28" cy="28" r="14" fill="url(#core_grad)" filter="url(#glow)"/>
+    <!-- Nucleus Core -->
+    <circle cx="28" cy="28" r="8" fill="#00FFC6"/>
+    <!-- Orbital Particles -->
+    <circle cx="10" cy="18" r="2.5" fill="#00FFC6"/>
+    <circle cx="46" cy="38" r="2" fill="#00A8FF"/>
+    <circle cx="34" cy="8" r="1.8" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Wordmark & Subtitle -->
+  <text x="70" y="32" font-family="'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="800" letter-spacing="1.5" fill="#052E3E">
+    AETHER<tspan fill="#00BFA5">LEARN</tspan>
+  </text>
+  <text x="70" y="48" font-family="'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="8.5" font-weight="600" letter-spacing="2" fill="#008375" opacity="0.9">
+    UNESCO PLANETARY KNOWLEDGE NEXUS
+  </text>
+
+  <!-- Gradients and Filters -->
+  <defs>
+    <linearGradient id="core_grad" x1="14" y1="14" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#052E3E"/>
+      <stop offset="60%" stop-color="#0A4D68"/>
+      <stop offset="100%" stop-color="#00FFC6"/>
+    </linearGradient>
+    <filter id="glow" x="0" y="0" width="56" height="56" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+</svg>

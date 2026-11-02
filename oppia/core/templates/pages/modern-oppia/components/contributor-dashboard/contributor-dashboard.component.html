@@ -1,0 +1,211 @@
+<div class="contributor-dashboard-container">
+  <!-- Header & Mission Banner -->
+  <header class="contributor-hero">
+    <div class="hero-badge">UNESCO SDG 4 GLOBAL ACTION</div>
+    <h1 class="hero-title">Planetary Contributor Hub</h1>
+    <p class="hero-subtitle">
+      Empower learners worldwide by localizing content into indigenous and regional languages, recording crystal-clear audio voiceovers, and curating interactive learning pathways.
+    </p>
+
+    <!-- Impact Stats Bento Grid -->
+    <div class="impact-grid">
+      <div class="impact-card">
+        <div class="impact-icon">🌐</div>
+        <div class="impact-data">
+          <span class="impact-value">{{ totalWordsTranslated | number }}</span>
+          <span class="impact-label">Words Localized</span>
+        </div>
+      </div>
+
+      <div class="impact-card">
+        <div class="impact-icon">🎙️</div>
+        <div class="impact-data">
+          <span class="impact-value">{{ totalAudioMinutes }} mins</span>
+          <span class="impact-label">Voiceover Audio Narrated</span>
+        </div>
+      </div>
+
+      <div class="impact-card">
+        <div class="impact-icon">✅</div>
+        <div class="impact-data">
+          <span class="impact-value">{{ approvedReviewsCount }}</span>
+          <span class="impact-label">Pedagogical Reviews Approved</span>
+        </div>
+      </div>
+
+      <div class="impact-card accent">
+        <div class="impact-icon">🏆</div>
+        <div class="impact-data">
+          <span class="impact-value">Tier 3</span>
+          <span class="impact-label">Global Polyglot Honor</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Segment Navigation -->
+  <nav class="contributor-tabs" role="tablist">
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab === 'translation'" 
+      (click)="switchTab('translation')"
+      role="tab"
+      [attr.aria-selected]="activeTab === 'translation'">
+      <span class="tab-icon">🌐</span>
+      <span>Translation Matrix</span>
+      <span class="tab-badge" *ngIf="translationOpportunities$ | async as items">{{ items.length }}</span>
+    </button>
+
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab === 'voiceover'" 
+      (click)="switchTab('voiceover')"
+      role="tab"
+      [attr.aria-selected]="activeTab === 'voiceover'">
+      <span class="tab-icon">🎙️</span>
+      <span>Voiceover Studio</span>
+      <span class="tab-badge" *ngIf="voiceoverOpportunities$ | async as items">{{ items.length }}</span>
+    </button>
+
+    <button 
+      class="tab-btn" 
+      [class.active]="activeTab === 'review'" 
+      (click)="switchTab('review')"
+      role="tab"
+      [attr.aria-selected]="activeTab === 'review'">
+      <span class="tab-icon">📝</span>
+      <span>Question Review</span>
+      <span class="tab-badge">3</span>
+    </button>
+  </nav>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading$ | async">
+    <div class="pulsing-spinner"></div>
+    <span>Synchronizing with UNESCO Contributor Network...</span>
+  </div>
+
+  <!-- Content Section -->
+  <div class="tab-content" *ngIf="!(isLoading$ | async)">
+    
+    <!-- 1. Translation Opportunities -->
+    <section *ngIf="activeTab === 'translation'" class="opportunity-section">
+      <div class="section-header">
+        <div>
+          <h2>Available Translation Opportunities</h2>
+          <p>Select an exploration to translate card dialogues and interactive question feedback.</p>
+        </div>
+        <div class="filter-pills">
+          <span class="pill active">All Languages</span>
+          <span class="pill">Hindi</span>
+          <span class="pill">Spanish</span>
+          <span class="pill">Arabic</span>
+          <span class="pill">French</span>
+        </div>
+      </div>
+
+      <div class="opportunity-grid">
+        <div class="opportunity-card" *ngFor="let opp of translationOpportunities$ | async">
+          <div class="card-top">
+            <span class="target-lang">{{ opp.language }}</span>
+            <span class="progress-pct">{{ opp.progress }} complete</span>
+          </div>
+
+          <h3 class="card-title">{{ opp.title }}</h3>
+          
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" [style.width]="opp.progress"></div>
+          </div>
+
+          <div class="card-footer">
+            <span class="id-tag">ID: {{ opp.id }}</span>
+            <button class="action-btn" (click)="switchTab('translation')">
+              <span>Contribute</span>
+              <span class="arrow">→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Voiceover Opportunities -->
+    <section *ngIf="activeTab === 'voiceover'" class="opportunity-section">
+      <div class="section-header">
+        <div>
+          <h2>Voiceover Narration Studio</h2>
+          <p>Record audio narrations so auditory learners and vision-impaired students can listen to lessons.</p>
+        </div>
+        <div class="studio-status">
+          <span class="recording-indicator">● Web Audio Synthesizer Active</span>
+        </div>
+      </div>
+
+      <div class="opportunity-grid">
+        <div class="opportunity-card voice" *ngFor="let opp of voiceoverOpportunities$ | async">
+          <div class="card-top">
+            <span class="target-lang">Audio: {{ opp.language }}</span>
+            <span class="progress-pct">{{ opp.progress }} voiced</span>
+          </div>
+
+          <h3 class="card-title">{{ opp.title }}</h3>
+          
+          <div class="audio-waveform-visual">
+            <span class="bar bar-1"></span>
+            <span class="bar bar-2"></span>
+            <span class="bar bar-3"></span>
+            <span class="bar bar-4"></span>
+            <span class="bar bar-5"></span>
+            <span class="bar bar-6"></span>
+            <span class="bar bar-7"></span>
+          </div>
+
+          <div class="card-footer">
+            <span class="id-tag">Exploration: {{ opp.id }}</span>
+            <button class="action-btn voice-btn">
+              <span>🎙️ Record Voiceover</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Question Review Pipeline -->
+    <section *ngIf="activeTab === 'review'" class="opportunity-section">
+      <div class="section-header">
+        <div>
+          <h2>Question Verification & Peer Review</h2>
+          <p>Review questions submitted by creators for pedagogical accuracy, clarity, and inclusivity.</p>
+        </div>
+      </div>
+
+      <div class="review-list">
+        <div class="review-card">
+          <div class="review-header">
+            <span class="rubric-badge">Grade 6 • Science</span>
+            <span class="status-tag pending">Needs Peer Review</span>
+          </div>
+          <h4 class="review-prompt">"Explain how photosynthesis converts radiant solar energy into chemical energy stored in glucose."</h4>
+          <p class="review-rubric"><strong>Interaction Type:</strong> TextInput with classifier model • <strong>Threshold:</strong> 0.85 semantic similarity</p>
+          <div class="review-actions">
+            <button class="approve-btn">✓ Approve for Global Deployment</button>
+            <button class="revise-btn">✎ Request Revisions</button>
+          </div>
+        </div>
+
+        <div class="review-card">
+          <div class="review-header">
+            <span class="rubric-badge">Grade 4 • Mathematics</span>
+            <span class="status-tag pending">Needs Peer Review</span>
+          </div>
+          <h4 class="review-prompt">"If a recipe requires 3/4 cup of sugar and you want to make half the batch, how much sugar is needed?"</h4>
+          <p class="review-rubric"><strong>Interaction Type:</strong> FractionInput • <strong>Answer:</strong> 3/8</p>
+          <div class="review-actions">
+            <button class="approve-btn">✓ Approve for Global Deployment</button>
+            <button class="revise-btn">✎ Request Revisions</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>

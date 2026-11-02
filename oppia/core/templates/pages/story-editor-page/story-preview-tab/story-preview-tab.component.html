@@ -1,0 +1,108 @@
+<div class="parent-container">
+  <div class="oppia-story-viewer-title" tabindex="0">
+    {{ story.getTitle() }}
+  </div>
+  <div dir="auto" class="oppia-story-viewer-description" tabindex="0">
+    {{ story.getDescription() }}
+  </div>
+  <div class="oppia-story-header-text" tabindex="0">
+    <strong>
+  <!-- Angular here attempts to resolve nodes.length before it is resolved from our component file.
+  This gives errors in console like "cannot read property length of undefined"
+  so we are using "safe navigation operator(?.)" to avoid rendering content,until data is retrieved.-->
+  1 out of {{ nodes?.length }} Chapters Completed
+    </strong>
+  </div>
+  <div class="d-md-block oppia-story-viewer-card-container">
+    <div *ngFor="let node of storyContents?._nodes let i = index;"
+         target="_blank" rel="noopener">
+      <div class="oppia-story-viewer-desktop">
+        <div [class.node-disabled]="!node.getPublishedStatus()">
+          <a class="oppia-story-viewer-card" [href]="getExplorationUrl(node)" tabindex="0">
+            <span class="oppia-chapter-title" aria-live="assertive">
+              <span [innerHTML]="'I18N_TOPIC_VIEWER_CHAPTER' | translate"></span> {{i + 1}}: {{ node.getTitle() }}
+            </span>
+            <div class="oppia-story-viewer-card-content">
+              <svg width="320"
+                   height="180"
+                   xmlns="http://www.w3.org/1600/svg"
+                   xmlns:xlink="http://www.w3.org/1999/xlink"
+                   version="1.1"
+                   class="oppia-story-viewer-card-img">
+                <defs>
+                  <pattern id="image{{i}}" patternUnits="userSpaceOnUse" height="180" width="320">
+                    <rect width="320"
+                          height="180"
+                          [attr.fill]="pathIconParameters[i].thumbnailBgColor">
+                    </rect>
+
+                    <image x="0"
+                           y="0"
+                           height="180"
+                           width="320"
+                           [attr.xlink:href]="pathIconParameters[i].thumbnailIconUrl"
+                           xlink:href="">
+                    </image>
+                  </pattern>
+                </defs>
+                <a target="_blank" rel="noopener">
+                  <rect width="320"
+                        height="180"
+                        attr.fill="url(#image{{i}})"
+                        rx="4">
+                  </rect>
+                </a>
+              </svg>
+
+              <div class="oppia-story-viewer-card-description-box">
+                <p class="oppia-description-text">{{node.getDescription()}}</p>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div class="oppia-story-viewer-mobile-card-content" [class.node-disabled]="!node.getPublishedStatus()">
+        <div class="story-thumbnail-image">
+          <svg xmlns="http://www.w3.org/1600/svg"
+               xmlns:xlink="http://www.w3.org/1999/xlink"
+               version="1.1"
+               viewBox="0 0 192 108" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <pattern id="image2{{i}}" patternUnits="userSpaceOnUse" height="108" width="192">
+                <rect width="192"
+                      height="108"
+                      [attr.fill]="pathIconParameters[i].thumbnailBgColor">
+                </rect>
+
+                <image x="0"
+                       y="0"
+                       width="192"
+                       height="108"
+                       [attr.xlink:href]="pathIconParameters[i].thumbnailIconUrl"
+                       xlink:href="">
+                </image>
+              </pattern>
+            </defs>
+            <rect [attr.href]="getExplorationUrl(node)"
+                  width="192"
+                  height="108"
+                  x="0"
+                  y="0"
+                  attr.fill="url(#image2{{i}})">
+            </rect>
+          </svg>
+        </div>
+        <div class="story-text" aria-hidden="true">
+          <span dir="ltr" class="oppia-chapter-title">
+            <span [innerHTML]="'I18N_TOPIC_VIEWER_CHAPTER' | translate"></span> {{i + 1}}:
+            <span dir="auto">{{node.getTitle()}}</span>
+          </span>
+          <div class="oppia-story-viewer-mobile-card-description-box">
+            <p>{{node.getDescription()}}</p>
+          </div>
+          <i class="fa fa-check chapter-complete-icon"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

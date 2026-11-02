@@ -1,0 +1,12 @@
+<div class="oppia-classroom-card-container classroom-card-dropshadow"
+     [ngClass]="{'classroom-card-big': !usedInCarousel, 'classroom-card-small': usedInCarousel}">
+  <a [href]="getClassroomUrl()" class="classroom-content" [ngClass]="{'classroom-content-big': !usedInCarousel, 'classroom-content-small': usedInCarousel}">
+    <img alt="Classroom thumbnail image" class="classroom-thumbnail"
+         [ngClass]="{'classroom-thumbnail-big': !usedInCarousel, 'classroom-thumbnail-small': usedInCarousel}"
+         [src]="classroomThumbnailUrl">
+    <div class="classroom-text-container">
+      <span class="classroom-name" [attr.title]="getName()" [attr.aria-label]="getName()" *ngIf="!isHackyClassroomNameTranslationDisplayed()">{{ getName() }}</span>
+      <span class="classroom-name" [attr.title]="getName()" [attr.aria-label]="getName()" *ngIf="isHackyClassroomNameTranslationDisplayed()">{{ classroomNameTranslationKey | translate }}</span>
+    </div>
+  </a>
+</div>

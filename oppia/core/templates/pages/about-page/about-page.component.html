@@ -1,0 +1,277 @@
+<div class="about-page e2e-test-about-page">
+
+  <div class="oppia-about-hero-section">
+    <div class="oppia-about-hero-section-content">
+      <h2 class="oppia-about-hero-title e2e-test-about-us-title">
+        {{ 'I18N_ABOUT_PAGE_HERO_SECTION_TITLE' | translate }}
+      </h2>
+      <p class="oppia-about-hero-subtext">
+        {{ 'I18N_ABOUT_PAGE_HERO_SECTION_SUBTEXT' | translate }}
+      </p>
+    </div>
+  </div>
+
+  <div class="oppia-about-foundation-section">
+    <div class="oppia-about-foundation-section-right">
+      <div class="oppia-about-foundation-section-products">
+        <p class="oppia-about-title-new e2e-test-about-page-title-new">
+          {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_TITLE' | translate }}
+        </p>
+        <p class="oppia-about-section-subtext-new">
+          {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_SUBTEXT1' | translate }}
+        </p>
+        <p class="oppia-about-section-subtext-new">
+          {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_SUBTEXT2' | translate }}
+        </p>
+      </div>
+      <div class="oppia-about-foundation-section-goals-container">
+        <div class="oppia-about-foundation-section-goal">
+          <p class="oppia-about-foundation-section-goal-title">
+            {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_MISSION' | translate }}
+          </p>
+          <p class="oppia-about-section-subtext-new">
+            {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_MISSION_SUBTEXT' | translate }}
+          </p>
+        </div>
+        <div class="oppia-about-foundation-section-goal">
+          <p class="oppia-about-foundation-section-goal-title">
+            {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_VISION' | translate }}
+          </p>
+          <p class="oppia-about-section-subtext-new">
+            {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_VISION_SUBTEXT' | translate }}
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="oppia-about-foundation-section-left">
+      <p class="oppia-about-foundation-section-timeline-subtitle">
+        {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_TIMELINE' | translate }}
+      </p>
+      <div class="oppia-about-foundation-section-timeline">
+        <div class="oppia-about-foundation-section-timeline-item">
+          <p class="oppia-about-foundation-section-timeline-year">
+            {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_TIMELINE_YEAR1' | translate }}
+          </p>
+          <p class="about-page oppia-about-section-subtext-new">
+            {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_TIMELINE_YEAR1_SUBTEXT' | translate }}
+          </p>
+        </div>
+        <div class="oppia-about-foundation-section-timeline-circle">
+        </div>
+        <div class="oppia-about-foundation-section-timeline-item">
+          <p class="oppia-about-foundation-section-timeline-year">
+            {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_TIMELINE_YEAR2' | translate }}
+          </p>
+          <p class="about-page oppia-about-section-subtext-new"
+             [innerHTML]="'I18N_ABOUT_PAGE_FOUNDATION_SECTION_TIMELINE_YEAR2_SUBTEXT' | translate">
+          </p>
+        </div>
+        <div class="oppia-about-foundation-section-timeline-circle">
+        </div>
+        <div class="oppia-about-foundation-section-timeline-item">
+          <p class="oppia-about-foundation-section-timeline-year">
+            {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_TIMELINE_YEAR3' | translate }}
+          </p>
+          <p class="about-page oppia-about-section-subtext-new">
+            {{ 'I18N_ABOUT_PAGE_FOUNDATION_SECTION_TIMELINE_YEAR3_SUBTEXT' | translate }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="oppia-about-platform-section">
+    <div class="oppia-about-platform-section-left e2e-test-about-page-features-section">
+      <p class="oppia-about-subtitle">
+        {{ 'I18N_ABOUT_PAGE_FEATURES' | translate }}
+      </p>
+
+      <div class="oppia-about-desktop-accordion-container">
+        <oppia-full-expand-accordion [accordionData]="featuresData" class="oppia-about-desktop-content"
+        [listContainerCustomClasses]="['oppia-about-features-list']">
+        </oppia-full-expand-accordion>
+      </div>
+
+      <div class="oppia-about-features-list oppia-about-non-desktop-content">
+        <div *ngFor="let panel of featuresData; let i = index"
+             class="oppia-about-accordion-item">
+          <button (click)="expandPanel(i)" *ngIf="featuresData[i].panelIsCollapsed"
+                  class="oppia-about-accordion-title-container e2e-test-about-page-features-panel-title-mobile"
+                  [ngClass]="panel.customTitleClassNames">
+            <p class="oppia-about-platform-subtext"> {{ panel.title | translate }} </p>
+            <i class="fas fa-plus accordion-icon"></i>
+          </button>
+          <div [(ngbCollapse)]="featuresData[i].panelIsCollapsed" [animation]="false" class="collapse-container panel-container"
+            [ngClass]="panel.customPanelClassNames">
+            <div class="oppia-about-accordion-title-container ">
+              <p class="oppia-about-accordion-panel-title oppia-about-platform-subtext"> {{ panel.title | translate }} </p>
+              <button (click)="closePanel(i)"
+                      class="e2e-test-about-page-features-panel-close-button"
+                      [attr.aria-label]="'I18N_ABOUT_PAGE_FEATURE_PANEL_CLOSE_BUTTON' | translate">
+                <i class="fas fa-minus accordion-icon"></i>
+              </button>
+            </div>
+            <p class="oppia-about-platform-subtext e2e-test-about-page-features-panel-content"> {{ panel.text | translate }} </p>
+            <div class="panel-image-container" *ngIf="panel.image">
+              <picture>
+                <source type="image/webp" [srcset]="getStaticImageUrl(panel.image + '.webp')">
+                <source type="image/png" [srcset]="getStaticImageUrl(panel.image + '.png')">
+                <img [src]="getStaticImageUrl(panel.image + '.png')"
+                     [alt]="panel.altText">
+              </picture>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="oppia-about-platform-section-right">
+      <p class="oppia-about-title-new e2e-test-about-page-title-new">
+        {{ 'I18N_ABOUT_PAGE_PLATFORM_SECTION_TITLE' | translate }}
+      </p>
+      <div class="oppia-about-platform-content">
+        <p class="oppia-about-platform-subtext">
+          {{ 'I18N_ABOUT_PAGE_PLATFORM_SECTION_SUBTEXT1' | translate }}
+        </p>
+        <p class="oppia-about-platform-subtext"
+           [innerHTML]="'I18N_ABOUT_PAGE_PLATFORM_SECTION_SUBTEXT2' | translate">
+        </p>
+      </div>
+      <div class="oppia-about-platform-button-container">
+        <oppia-primary-button
+          buttonHref="/learn"
+          (onClickPrimaryButton)="onClickExploreLessonsButton()"
+          [customClasses]="['oppia-about-platform-button', 'oppia-about-platform-subtext', 'e2e-test-about-page-explore-lessons-button']"
+          buttonText="{{ 'I18N_ACTION_EXPLORE_LESSONS' | translate }}">
+        </oppia-primary-button>
+        <oppia-primary-button
+          buttonHref="/android"
+          (onClickPrimaryButton)="onClickGetAndroidAppButton()"
+          [customClasses]="['oppia-about-platform-button', 'oppia-about-secondary-button', 'oppia-about-platform-subtext', 'e2e-test-about-page-android-button']"
+          buttonText="{{ 'I18N_ACTION_GET_ANDRIOD_APP' | translate }}">
+        </oppia-primary-button>
+      </div>
+    </div>
+  </div>
+
+  <oppia-about-partnerships-section
+    [partnersData]="partnersData">
+  </oppia-about-partnerships-section>
+
+  <div class="oppia-about-impact-section">
+    <div class="oppia-about-impact-section-top">
+      <p class="oppia-about-title-new e2e-test-about-page-title-new">
+        {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_TITLE' | translate }}
+      </p>
+      <div class="oppia-about-impact-desktop-content oppia-about-impact-content">
+        <p class="oppia-about-section-subtext-new oppia-about-impact-section-top-text">
+          {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_SUBTEXT1' | translate }}
+        </p>
+        <p class="oppia-about-section-subtext-new">
+          {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_SUBTEXT2' | translate }}
+        </p>
+      </div>
+      <p class="oppia-about-section-subtext-new oppia-about-impact-mobile-content">
+        {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_SUBTEXT1' | translate }}{{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_SUBTEXT2' | translate }}
+      </p>
+      <div class="oppia-about-impact-section-stats" >
+        <div class="oppia-about-impact-section-stat-container">
+          <div class="oppia-about-impact-section-stat">
+            <p class="oppia-about-impact-section-stat-title e2e-test-about-oppia-impact-stat-title">
+              {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_STAT1_TITLE' | translate }}
+            </p>
+          </div>
+          <p class="oppia-about-section-subtext-new stat-subtext">
+            {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_STAT1_SUBTEXT' | translate }}
+          </p>
+        </div>
+        <div class="oppia-about-impact-section-stat-container">
+          <div class="oppia-about-impact-section-stat">
+            <p class="oppia-about-impact-section-stat-title e2e-test-about-oppia-impact-stat-title">
+              {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_STAT2_TITLE' | translate }}
+            </p>
+          </div>
+          <p class="oppia-about-section-subtext-new stat-subtext">
+            {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_STAT2_SUBTEXT' | translate }}
+          </p>
+        </div>
+        <div class="oppia-about-impact-section-stat-container">
+          <div class="oppia-about-impact-section-stat">
+            <p class="oppia-about-impact-section-stat-title e2e-test-about-oppia-impact-stat-title">
+              {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_STAT3_TITLE' | translate }}
+            </p>
+          </div>
+          <p class="oppia-about-section-subtext-new stat-subtext">
+            {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_STAT3_SUBTEXT' | translate }}
+          </p>
+        </div>
+        <div class="oppia-about-impact-section-stat-container">
+          <div class="oppia-about-impact-section-stat">
+            <p class="oppia-about-impact-section-stat-title e2e-test-about-oppia-impact-stat-title">
+              {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_STAT4_TITLE' | translate }}
+            </p>
+          </div>
+          <p class="about-page oppia-about-section-subtext-new stat-subtext">
+            {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_STAT4_SUBTEXT' | translate }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="oppia-about-impact-charts-container">
+      <div class="oppia-about-impact-chart-container e2e-test-about-impact-chart-container">
+        <p class="oppia-about-section-subtext-new"
+           [innerHTML]="'I18N_ABOUT_PAGE_IMPACT_SECTION_TOP_10_COUNTRIES_TEXT_WEBSITE' | translate">
+        </p>
+        <div class="oppia-about-impact-bar-chart-container">
+          <oppia-bar-chart [ticks]="oppiaWebBarChartTicks"
+            chartId="oppiaWebBarChart"
+            [rawData]="oppiaWebRawBarChartData"
+            barsColor="#00645c"
+            labelsColor="#00645c4d"
+            annotationTextColor="#fff">
+          </oppia-bar-chart>
+        </div>
+      </div>
+      <div class="oppia-about-impact-chart-container e2e-test-about-impact-chart-container">
+        <p class="oppia-about-section-subtext-new"
+           [innerHTML]="'I18N_ABOUT_PAGE_IMPACT_SECTION_TOP_10_COUNTRIES_TEXT_ANDROID' | translate">
+        </p>
+        <div class="oppia-about-impact-bar-chart-container">
+          <oppia-bar-chart [ticks]="oppiaAndroidBarChartTicks"
+            chartId="oppiaAndroidBarChart"
+            [rawData]="oppiaAndroidRawBarChartData"
+            barsColor="#d2ac61"
+            labelsColor="#97a4062e"
+            annotationTextColor="#333">
+          </oppia-bar-chart>
+        </div>
+      </div>
+    </div>
+
+    <div class="oppia-about-impact-section-button-container">
+      <p class="oppia-about-section-subtext-new oppia-about-impact-buttons-content">
+        {{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_REPORT_BUTTON_SUBTEXT' | translate }}
+      </p>
+      <div>
+        <oppia-primary-button
+          [buttonHref]="IMPACT_REPORT_LINK_2024"
+          [customClasses]="['oppia-about-impact-button', 'e2e-test-about-page-impact-report-button']"
+          buttonText="{{ 'I18N_ABOUT_PAGE_IMPACT_SECTION_REPORT_BUTTON_TEXT' | translate }}">
+        </oppia-primary-button>
+      </div>
+    </div>
+
+  </div>
+
+  <oppia-about-cta-section
+    [screenType]="screenType"
+    [volunteerFormLink]="volunteerIdealistLink"
+    [partnershipsFormLink]="partnershipsFormLink"
+    [isLanguageRTL]="isLanguageRTL()"
+    (donateButtonClicked)="onClickDonateCTAButton()"
+    (volunteerButtonClicked)="onClickVolunteerCTAButton()"
+    (volunteerLearnMoreClicked)="onClickVolunteerLearnMoreButton()"
+    (partnerButtonClicked)="onClickPartnerCTAButton()"
+    (partnerLearnMoreClicked)="onClickPartnerLearnMoreButton()">
+  </oppia-about-cta-section>
+</div>

@@ -1,0 +1,17 @@
+<oppia-titled-background-banner [title]="bannerTitleI18nKey"
+                                [buttonText]="bannerButtonI18nKey"
+                                (bannerClick)="onExit()">
+</oppia-titled-background-banner>
+<div *ngIf="currentQuestion">
+  <oppia-certificate-assessment-conversation-skin #conversationSkin
+                                                  [currentQuestion]="currentQuestion"
+                                                  [currentQuestionIndex]="currentQuestionIndex"
+                                                  [totalQuestions]="totalQuestionCount"
+                                                  [progressPercentage]="progressPercentage"
+                                                  [isLastQuestion]="isLastQuestion"
+                                                  [interactionHtml]="getInteractionHtml()"
+                                                  (previousQuestion)="previousQuestion()"
+                                                  (nextQuestion)="nextQuestion()"
+                                                  (submitAssessment)="submitAssessment()">
+  </oppia-certificate-assessment-conversation-skin>
+</div>

@@ -1,0 +1,13 @@
+core/templates/expressions/parser.js
+integrations/*
+integrations_dev/*
+assets/scripts/*
+third_party/*
+build/*
+*.min.js
+dump.rdb
+.direnv/*
+tmpcompiledjs*
+dist/*
+local_compiled_js/*
+local_compiled_js_for_test/*

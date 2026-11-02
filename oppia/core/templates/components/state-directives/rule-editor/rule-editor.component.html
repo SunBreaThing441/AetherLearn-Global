@@ -1,0 +1,89 @@
+<div class="position-relative">
+  <form class="form-justify e2e-test-rule-details" role="form">
+    <div *ngIf="rule.type != 'FuzzyMatches'" class="rule-parent">
+      <oppia-rule-type-selector class="e2e-test-answer-description"
+                                aria-live="polite"
+                                [(localValue)]="rule.type"
+                                (onSelectionChange)="onSelectNewRuleType($event)">
+      </oppia-rule-type-selector>
+
+      <span *ngFor="let item of ruleDescriptionFragments" class="oppia-rule-editor-span e2e-test-answer-description-fragment">
+        <span *ngIf="item.type == 'select'" class="text-dark">
+          <span *ngIf="ruleDescriptionChoices.length === 1">
+            {{ getFirstRuleDescriptionChoiceText() | convertToPlainText | truncate: 70 }}
+          </span>
+          <span *ngIf="ruleDescriptionChoices.length !== 1">
+            <oppia-html-select class="oppia-rule-description-choice" [options]="ruleDescriptionChoiceList" [selectionId]="getRuleInputAsString(item)" (onSelectionChange)="onSelectionChangeHtmlSelect($event, item)">
+            </oppia-html-select>
+          </span>
+        </span>
+
+        <div class="oppia-custom-editor-container">
+          <span *ngIf="item.type == 'checkboxes'" class="text-dark">
+            <object-editor [modalId]="modalId"
+                           [objType]="'SetOfTranslatableHtmlContentIds'"
+                           [initArgs]="ruleEditorInitArgs"
+                           [value]="getRuleInputValue(item)"
+                           (valueChange)="setRuleInputValue($event, item)">
+            </object-editor>
+          </span>
+          <span *ngIf="item.type == 'dropdown'" class="text-dark">
+            <object-editor [modalId]="modalId"
+                           [objType]="'ListOfSetsOfTranslatableHtmlContentIds'"
+                           [initArgs]="ruleEditorInitArgs"
+                           [value]="getRuleInputValue(item)"
+                           (valueChange)="setRuleInputValue($event, item)">
+            </object-editor>
+          </span>
+          <span *ngIf="item.type == 'dragAndDropHtmlStringSelect'" class="text-dark">
+            <object-editor [modalId]="modalId"
+                           [objType]="'TranslatableHtmlContentId'"
+                           [initArgs]="ruleEditorInitArgs"
+                           [value]="getRuleInputValue(item)"
+                           (valueChange)="setRuleInputValue($event, item)">
+            </object-editor>
+          </span>
+          <span *ngIf="item.type == 'dragAndDropPositiveIntSelect'" class="text-dark">
+            <object-editor [modalId]="modalId"
+                           [objType]="'DragAndDropPositiveInt'"
+                           [initArgs]="ruleEditorInitArgs"
+                           [value]="getRuleInputValue(item)"
+                           (valueChange)="setRuleInputValue($event, item)">
+            </object-editor>
+          </span>
+          <span *ngIf="item.type != 'select' &&
+                       item.type != 'noneditable' &&
+                       item.type != 'dragAndDropPositiveIntSelect' &&
+                       item.type != 'dragAndDropHtmlStringSelect' &&
+                       item.type != 'dropdown' &&
+                       item.type != 'checkboxes'">
+            <object-editor [modalId]="modalId"
+                           [objType]="item.type"
+                           [value]="getRuleInputValue(item)"
+                           (valueChange)="setRuleInputValue($event, item)"
+                           [isEditable]="isEditable"
+                           [alwaysEditable]="true"
+                           class="text-dark">
+            </object-editor>
+          </span>
+          <span *ngIf="item.type == 'noneditable'">
+            {{ item.text }}
+          </span>
+        </div>
+      </span>
+    </div>
+  </form>
+
+  <div *ngIf="!isRuleValid" class="text-danger mt-2 oppia-warning-text">
+    The value of tolerance cannot be negative.
+  </div>
+
+  <div class="oppia-rule-save-cancel-buttons" *ngIf="isEditingRuleInline">
+    <div class="float-end">
+      <button type="button" class="btn btn-secondary cancel-button" (click)="cancelThisEdit()">Cancel</button>
+      <button type="button" class="btn btn-success e2e-test-save-answer save-button" [disabled]="isInvalid || !isRuleValid" (click)="saveThisRule()">Save Answer</button>
+    </div>
+
+    <div class="oppia-clear"></div>
+  </div>
+</div>

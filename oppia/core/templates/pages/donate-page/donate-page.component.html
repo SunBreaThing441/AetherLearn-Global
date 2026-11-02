@@ -1,0 +1,154 @@
+<div class="donate-page-container">
+  <div class="donate-page">
+    <div class="donate-content-container">
+      <div class="donate-content">
+        <div class="donate-content-1">
+          <picture>
+            <source type="image/webp" [srcset]="getStaticImageUrl('/donate/content-1-head.webp')">
+            <source type="image/png" [srcset]="getStaticImageUrl('/donate/content-1-head.png')">
+            <img [src]="getStaticImageUrl('/donate/content-1-head.png')" alt="Photo of a classroom with children">
+          </picture>
+          <div class="donate-content-padding">
+            <div class="donate-message-1 donate-message-1-border">
+              <p class="donate-heading-1">{{ 'I18N_DONATE_PAGE_CONTENT_HEADING_1' | translate }}</p>
+              <p class="donate-text-1">
+                <span class="donate-font-weight-700">{{
+                  'I18N_DONATE_PAGE_CONTENT_TEXT_1_BOLD' | translate
+                }}</span>
+                <span> {{ 'I18N_DONATE_PAGE_CONTENT_TEXT_1_NORMAL' | translate }} </span>
+              </p>
+            </div>
+            <div class="donate-message-1 donate-message-1-border" *ngFor="let donationValue of donationValues">
+              <p class="donate-heading-1 donate-font-green donate-font-weight-600">
+                {{
+                  'I18N_DONATE_PAGE_CONTENT_DONATION_AMOUNT'
+                    | translate : { amount: donationValue.amount }
+                }}
+              </p>
+              <p class="donate-text-1">
+                {{ donationValue.description | translate }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="donate-content-2 e2e-test-dp-our-impact-section">
+          <picture>
+            <source type="image/webp" [srcset]="getStaticImageUrl('/donate/content-2-head.webp')">
+            <source type="image/png" [srcset]="getStaticImageUrl('/donate/content-2-head.png')">
+            <img [src]="getStaticImageUrl('/donate/content-2-head.png')" alt="Photo of a classroom with children">
+          </picture>
+          <div class="donate-content-padding">
+            <div class="donate-message-1">
+              <p class="donate-heading-1 donate-font-white donate-font-weight-600 e2e-test-donate-heading">
+                {{ 'I18N_DONATE_PAGE_CONTENT_HEADING_2' | translate }}
+              </p>
+              <p class="donate-text-1 donate-font-white">
+                {{ 'I18N_DONATE_PAGE_CONTENT_TEXT_2' | translate }}
+              </p>
+            </div>
+            <div class="donate-stats-container" *ngFor="let impactStatRow of impactStats; index as i">
+              <div class="donate-stat" *ngFor="let impactStat of impactStatRow">
+                <div>
+                  <div class="donate-stat-svg-container" [ngClass]="{'donate-stat-svg-container-sm': i > 0 }">
+                    <img [src]="getStaticImageUrl(impactStat.imageUrl)" *ngIf="impactStat.imageUrl !== null" loading="lazy" alt="Graphic for the statistic">
+                    <div *ngIf="impactStat.stat !== null">{{ impactStat.stat }}</div>
+                  </div>
+                  <p [ngClass]="{'donate-stat-text-sm': i > 0 , 'donate-stat-text-lg' : i !== 0}">{{ impactStat.text | translate }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="donate-content-1 no-border e2e-test-dp-our-network-section">
+          <div class="donate-content-padding">
+            <div class="donate-heading-1 donate-font-weight-600 e2e-test-dp-our-network-heading">
+              {{ 'I18N_DONATE_PAGE_CONTENT_HEADING_3' | translate }}
+            </div>
+            <p class="donate-text-1">
+              {{ 'I18N_DONATE_PAGE_CONTENT_TEXT_3' | translate }}
+            </p>
+            <div class="donate-highlights e2e-test-donate-highlights">
+              <p>{{ 'I18N_DONATE_PAGE_CONTENT_HIGHLIGHTS' | translate }}</p>
+              <div>
+                <div class="donate-hightlights-tile" *ngFor="let highlight of highlights">
+                  <picture>
+                    <source type="image/webp" [srcset]="getStaticImageUrl(highlight.imageUrl + '.webp')">
+                    <source type="image/png" [srcset]="getStaticImageUrl(highlight.imageUrl + '.png')">
+                    <img class="highlight-tile-img" [src]="getStaticImageUrl(highlight.imageUrl + '.png')" loading="lazy" alt="Photo of the hightlight's partners">
+                  </picture>
+                  <div>
+                    <p>{{ highlight.heading | translate }}</p>
+                    <p>{{ highlight.text | translate }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="donate-learners-section e2e-test-donate-our-learners">
+              <p> {{ 'I18N_DONATE_PAGE_CONTENT_HEADING_4' | translate }} </p>
+              <div class="donate-learner-container e2e-donate-page-learner-carousel">
+                <button class="donate-learner-carousel-prev-btn e2e-test-donate-page-learner-carousel-prev-btn"
+                        (click)="moveLearnerCarouselToPreviousSlide()">
+                  <i class="donate-learner-testimonial-carousel-prev-icon fas"
+                      [ngClass]="{'fa-chevron-left': !isLanguageRTL(), 'fa-chevron-right': isLanguageRTL()}">
+                  </i>
+                  <span class="visually-hidden">Previous</span>
+                </button>
+                <ngb-carousel #learnerCarousel [interval]="0" [showNavigationArrows]="false" [animation]="false">
+                  <ng-template ngbSlide *ngFor="let learner of learners">
+                    <div class="donate-learners-tile">
+                      <picture>
+                        <source class="donate-learners-img" type="image/webp" [srcset]="getStaticImageUrl(learner.webpUrl)">
+                        <source class="donate-learners-img" type="image/png" [srcset]="getStaticImageUrl(learner.imageUrl)">
+                        <img class="donate-learners-img" [src]="getStaticImageUrl(learner.imageUrl)" loading="lazy" alt="Photo of learner">
+                      </picture>
+                    </div>
+                    <div class="donate-learners-content">
+                      <p class="donate-learners-country">{{ learner.country | translate }}</p>
+                      <div class="donate-learners-text">
+                        <p>{{ learner.text | translate }}</p>
+                      </div>
+                      <p class="donate-learners-name">- {{ learner.name | translate }} </p>
+                    </div>
+                  </ng-template>
+                </ngb-carousel>
+                <button class="donate-learner-carousel-next-btn e2e-test-donate-page-learner-carousel-next-btn"
+                        (click)="moveLearnerCarouselToNextSlide()">
+                  <i class="donate-learner-testimonial-carousel-next-icon fas"
+                    [ngClass]="{'fa-chevron-right': !isLanguageRTL(), 'fa-chevron-left': isLanguageRTL()}">
+                  </i>
+                  <span class="visually-hidden">Next</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="donate-content-1">
+          <div class="donate-content-padding donate-today-content">
+            <p class="e2e-test-ready-to-donate-title">
+              {{ 'I18N_DONATE_PAGE_CONTENT_DONATE_NOW_HEADING_1' | translate }}
+            </p>
+            <p>{{ 'I18N_DONATE_PAGE_CONTENT_DONATE_NOW_HEADING_2' | translate }}</p>
+            <p>{{ 'I18N_DONATE_PAGE_CONTENT_DONATE_NOW_CONTENT_1' | translate }}</p>
+            <p>{{ 'I18N_DONATE_PAGE_CONTENT_DONATE_NOW_CONTENT_2' | translate }}</p>
+          </div>
+          <picture>
+            <source type="image/webp" [srcset]="getStaticImageUrl('/donate/donate-today.webp')">
+            <source type="image/png" [srcset]="getStaticImageUrl('/donate/donate-today.png')">
+            <img [src]="getStaticImageUrl('/donate/donate-today.png')" alt="Photo of Oppia's learners" loading="lazy">
+          </picture>
+        </div>
+      </div>
+    </div>
+    <button class="donate-modal-button" (click)="openDonationBoxModal()">
+      <img [src]="getStaticImageUrl('/donate/donate-button-heart.svg')" alt="Graphic of a white heart">
+      <span>{{ 'I18N_DONATE_PAGE_BREADCRUMB' | translate }}</span>
+    </button>
+    <div class="donation-box-container">
+      <div class="donation-box">
+        <div class="donation-box-iframe">
+          <donation-box></donation-box>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

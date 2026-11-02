@@ -1,0 +1,215 @@
+<div class="player-container" role="main">
+  <!-- Lesson Top Header & Progress -->
+  <div class="player-header">
+    <div class="lesson-meta">
+      <div class="node-meta-row">
+        <span class="badge-cat">CONVERSATIONAL NODE</span>
+        <span class="checkpoint-tag" *ngIf="checkpointReached">
+          <span class="dot"></span> Checkpoint Active
+        </span>
+      </div>
+      <h2 class="lesson-title">{{ explorationTitle$ | async }}</h2>
+    </div>
+
+    <div class="player-controls">
+      <!-- Audio Speech Waveform Button -->
+      <button 
+        type="button" 
+        class="audio-waveform-btn" 
+        [class.playing]="isAudioPlaying"
+        (click)="toggleAudio(currentState$ | async)"
+        aria-label="Toggle Tutor Speech Audio">
+        <div class="waveform-bars" *ngIf="isAudioPlaying">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <span class="icon" *ngIf="!isAudioPlaying">🔊</span>
+        <span>{{ isAudioPlaying ? 'Mute Tutor' : 'Listen Narration' }}</span>
+      </button>
+
+      <!-- Radial Progress Bar -->
+      <div class="progress-wrap" *ngIf="!(isCompleted$ | async)">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" [style.width.%]="progressPercentage$ | async"></div>
+        </div>
+        <span class="progress-label">{{ progressPercentage$ | async }}% Mastered</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lesson Stage Canvas -->
+  <div class="lesson-stage">
+    <!-- Active Conversational Card -->
+    <div class="conversation-card active-card" *ngIf="currentState$ | async as state">
+      <!-- Holographic Tutor Guide Header -->
+      <div class="tutor-header">
+        <div class="tutor-avatar" title="Aether Holographic Tutor">
+          <div class="avatar-glow"></div>
+          <span class="avatar-glyph">🤖</span>
+        </div>
+        <div class="tutor-meta">
+          <span class="tutor-name">Aether Tutor <span class="badge-ai">AI Guide</span></span>
+          <span class="tutor-state">{{ currentStateName$ | async }}</span>
+        </div>
+      </div>
+
+      <!-- Dialogue Bubble (HTML Format) -->
+      <div class="dialogue-bubble">
+        <div class="card-content" [innerHTML]="state.content.html"></div>
+      </div>
+
+      <!-- Interaction Injectors Area -->
+      <div class="interaction-area" *ngIf="!(isCompleted$ | async)">
+        <!-- 1. Multiple Choice Interaction -->
+        <div *ngIf="state.interaction.id === 'MultipleChoiceInput'" class="multiple-choice-container">
+          <div class="options-list" role="radiogroup" aria-label="Select an answer">
+            <button
+              type="button"
+              *ngFor="let choice of state.interaction.customization_args.choices?.value; let idx = index"
+              class="choice-btn"
+              [class.selected]="selectedMultipleChoiceOption === idx"
+              (click)="selectedMultipleChoiceOption = idx"
+              [disabled]="isProcessing$ | async">
+              <span class="choice-num">{{ idx + 1 }}</span>
+              <span class="choice-text" [innerHTML]="choice.html"></span>
+            </button>
+          </div>
+
+          <div class="submit-action">
+            <button
+              type="button"
+              class="spa-primary-btn submit-btn"
+              [disabled]="selectedMultipleChoiceOption === null || (isProcessing$ | async)"
+              (click)="submitAnswer(selectedMultipleChoiceOption)">
+              Transmit Answer ➔
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Text Input Interaction -->
+        <div *ngIf="state.interaction.id === 'TextInput'" class="text-input-container">
+          <div class="input-field-wrap">
+            <input 
+              type="text" 
+              class="aether-text-input" 
+              [(ngModel)]="textInputAnswer" 
+              placeholder="Type your response here..."
+              [disabled]="isProcessing$ | async"
+              (keyup.enter)="submitAnswer(textInputAnswer)"
+              aria-label="Text Answer Input">
+            <button 
+              type="button" 
+              class="spa-primary-btn submit-btn" 
+              [disabled]="!textInputAnswer.trim() || (isProcessing$ | async)"
+              (click)="submitAnswer(textInputAnswer)">
+              Submit
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Numeric Input Interaction -->
+        <div *ngIf="state.interaction.id === 'NumericInput'" class="numeric-input-container">
+          <div class="input-field-wrap">
+            <input 
+              type="number" 
+              class="aether-text-input" 
+              [(ngModel)]="numericInputAnswer" 
+              placeholder="Enter numerical value..."
+              [disabled]="isProcessing$ | async"
+              (keyup.enter)="submitAnswer(numericInputAnswer)"
+              aria-label="Numeric Answer Input">
+            <button 
+              type="button" 
+              class="spa-primary-btn submit-btn" 
+              [disabled]="numericInputAnswer === null || (isProcessing$ | async)"
+              (click)="submitAnswer(numericInputAnswer)">
+              Submit
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Item Selection Input Interaction -->
+        <div *ngIf="state.interaction.id === 'ItemSelectionInput'" class="item-selection-container">
+          <div class="options-list">
+            <button
+              type="button"
+              *ngFor="let choice of state.interaction.customization_args.choices?.value"
+              class="choice-btn"
+              [class.selected]="selectedItemKeys.includes(choice.html)"
+              (click)="toggleItemSelection(choice.html)">
+              <span class="choice-num">{{ selectedItemKeys.includes(choice.html) ? '✓' : '+' }}</span>
+              <span class="choice-text" [innerHTML]="choice.html"></span>
+            </button>
+          </div>
+          <div class="submit-action">
+            <button
+              type="button"
+              class="spa-primary-btn submit-btn"
+              [disabled]="selectedItemKeys.length === 0 || (isProcessing$ | async)"
+              (click)="submitAnswer(selectedItemKeys)">
+              Submit Selections
+            </button>
+          </div>
+        </div>
+
+        <!-- 5. Continue Interaction -->
+        <div *ngIf="state.interaction.id === 'Continue'" class="continue-container">
+          <button 
+            type="button" 
+            class="spa-continue-btn" 
+            [disabled]="isProcessing$ | async"
+            (click)="submitContinue()">
+            Proceed to Next State ➔
+          </button>
+        </div>
+      </div>
+
+      <!-- Bioluminescent Feedback Banner -->
+      <div 
+        class="feedback-banner" 
+        *ngIf="feedback$ | async as fb" 
+        [class.correct]="fb.isCorrect" 
+        [class.incorrect]="!fb.isCorrect"
+        role="alert">
+        <div class="feedback-icon">
+          {{ fb.isCorrect ? '✨' : '💡' }}
+        </div>
+        <div class="feedback-text" [innerHTML]="fb.html"></div>
+      </div>
+
+      <!-- Sequential Hint Accordion -->
+      <div class="hints-section" *ngIf="(hints$ | async)?.length">
+        <button 
+          type="button" 
+          class="hint-toggle-btn" 
+          (click)="toggleHints()"
+          aria-expanded="showHints">
+          <span class="hint-icon">💡</span>
+          <span>Need Guidance? ({{ (hints$ | async)?.length }} hints available)</span>
+          <span class="chevron">{{ showHints ? '▲' : '▼' }}</span>
+        </button>
+
+        <div class="hints-dropdown" *ngIf="showHints">
+          <div 
+            *ngFor="let hint of hints$ | async; let hIdx = index" 
+            class="hint-card">
+            <h4>Guidance Point {{ hIdx + 1 }}</h4>
+            <div [innerHTML]="hint.hint_content.html"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Exploration Completion Card -->
+    <div class="conversation-card completion-card" *ngIf="isCompleted$ | async">
+      <div class="completion-icon">🏆</div>
+      <span class="badge-cat">SDG-4 COMPETENCY ACHIEVED</span>
+      <h2>Exploration Completed!</h2>
+      <p>Congratulations! You have demonstrated full conceptual mastery across this AetherLearn Global module.</p>
+      <div class="completion-actions">
+        <button type="button" class="spa-primary-btn retry-btn" (click)="loadLesson(explorationId)">
+          🔄 Replay Exploration
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

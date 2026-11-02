@@ -1,0 +1,1236 @@
+# Copyright 2022 The Oppia Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Unit tests for scripts/run_lighthouse_tests.py."""
+
+from __future__ import annotations
+
+import builtins
+import io
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+from core.constants import constants
+from core.tests import test_utils
+from scripts import build, common, run_lighthouse_tests, servers
+
+GOOGLE_APP_ENGINE_PORT = 8181
+LIGHTHOUSE_CONFIG_FILENAME = '.lighthouserc.js'
+LIGHTHOUSE_DESKTOP_CONFIG_FILENAME = '.lighthouserc-desktop.js'
+
+
+class MockCompiler:
+    def wait(self) -> None:  # pylint: disable=missing-docstring
+        pass
+
+
+class MockCompilerContextManager:
+    def __init__(self) -> None:
+        pass
+
+    def __enter__(self) -> MockCompiler:
+        return MockCompiler()
+
+    def __exit__(self, *unused_args: str) -> None:
+        pass
+
+
+class RunLighthouseTestsTests(test_utils.GenericTestBase):
+    """Unit tests for scripts/run_lighthouse_tests.py."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.print_arr: list[str] = []
+
+        def mock_print(msg: str) -> None:
+            self.print_arr.append(msg)
+
+        self.print_swap = self.swap(builtins, 'print', mock_print)
+
+        self.swap_sys_exit = self.swap(sys, 'exit', lambda _: None)
+        puppeteer_path = os.path.join(
+            'core', 'tests', 'puppeteer', 'lighthouse_setup.js'
+        )
+        self.puppeteer_bash_command = [
+            common.LIGHTHOUSE_NODE_BIN_PATH,
+            puppeteer_path,
+        ]
+        lhci_path = os.path.join(
+            'node_modules', '@lhci', 'cli', 'src', 'cli.js'
+        )
+        self.lighthouse_check_bash_command = [
+            common.LIGHTHOUSE_NODE_BIN_PATH,
+            lhci_path,
+            'autorun',
+            '--config=%s' % LIGHTHOUSE_CONFIG_FILENAME,
+        ]
+        self.lighthouse_desktop_check_bash_command = [
+            common.LIGHTHOUSE_NODE_BIN_PATH,
+            lhci_path,
+            'autorun',
+            '--config=%s' % LIGHTHOUSE_DESKTOP_CONFIG_FILENAME,
+        ]
+        # Arguments to record in lighthouse_setup.js.
+        self.extra_args = [
+            '-record',
+            os.path.join(
+                os.getcwd(), '..', 'lhci-puppeteer-video', 'video.mp4'
+            ),
+        ]
+
+        def mock_context_manager(
+            **unused_kwargs: bool,
+        ) -> MockCompilerContextManager:
+            return MockCompilerContextManager()
+
+        self.swap_ng_build = self.swap(
+            servers, 'managed_ng_build', mock_context_manager
+        )
+        self.swap_redis_server = self.swap(
+            servers, 'managed_redis_server', mock_context_manager
+        )
+        self.swap_firebase_auth_emulator = self.swap(
+            servers, 'managed_firebase_auth_emulator', mock_context_manager
+        )
+        self.swap_cloud_datastore_emulator = self.swap(
+            servers, 'managed_cloud_datastore_emulator', mock_context_manager
+        )
+        self.swap_dev_appserver = self.swap(
+            servers,
+            'managed_dev_appserver',
+            lambda *unused_args, **unused_kwargs: MockCompilerContextManager(),
+        )
+        with open('dummy-lighthouse-pages.json', 'w', encoding='utf-8') as f:
+            f.write(
+                json.dumps(
+                    {
+                        'splash': {'url': 'http://localhost:8181/'},
+                        'about': {'url': 'http://localhost:8181/about'},
+                        'contact': {'url': 'http://localhost:8181/contact'},
+                    }
+                )
+            )
+        self.lighthouse_pages_json_filepath_swap = self.swap(
+            run_lighthouse_tests,
+            'LIGHTHOUSE_PAGES_JSON_FILEPATH',
+            'dummy-lighthouse-pages.json',
+        )
+        with open('dummy-lighthouse-shards.json', 'w', encoding='utf-8') as f:
+            f.write(
+                json.dumps(
+                    {
+                        '1': ['splash', 'about'],
+                        '2': ['contact'],
+                    }
+                )
+            )
+        self.lighthouse_shards_json_filepath_swap = self.swap(
+            run_lighthouse_tests,
+            'LIGHTHOUSE_SHARDS_JSON_FILEPATH',
+            'dummy-lighthouse-shards.json',
+        )
+        # A config with one URL that references an entity, used to exercise the
+        # data-setup path where the puppeteer script must run.
+        with open(
+            'dummy-lighthouse-pages-with-entities.json', 'w', encoding='utf-8'
+        ) as f:
+            f.write(
+                json.dumps(
+                    {
+                        'about': {'url': 'http://localhost:8181/about'},
+                        'topic-editor': {
+                            'url': (
+                                'http://localhost:8181/'
+                                'topic_editor/{{topic_id}}'
+                            )
+                        },
+                    }
+                )
+            )
+        self.lighthouse_pages_json_filepath_with_entities_swap = self.swap(
+            run_lighthouse_tests,
+            'LIGHTHOUSE_PAGES_JSON_FILEPATH',
+            'dummy-lighthouse-pages-with-entities.json',
+        )
+        with open(
+            'dummy-lighthouse-shards-with-entities.json', 'w', encoding='utf-8'
+        ) as f:
+            f.write(
+                json.dumps(
+                    {
+                        '2': ['about', 'topic-editor'],
+                    }
+                )
+            )
+        self.lighthouse_shards_json_filepath_with_entities_swap = self.swap(
+            run_lighthouse_tests,
+            'LIGHTHOUSE_SHARDS_JSON_FILEPATH',
+            'dummy-lighthouse-shards-with-entities.json',
+        )
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        os.remove('dummy-lighthouse-pages.json')
+        os.remove('dummy-lighthouse-pages-with-entities.json')
+        os.remove('dummy-lighthouse-shards.json')
+        os.remove('dummy-lighthouse-shards-with-entities.json')
+
+    def test_inject_entities_into_url_with_valid_entity(self) -> None:
+        entities = {'topic_id': '4'}
+        url = 'http://localhost:8181/topic_editor/{{topic_id}}'
+        expected_injected_url = 'http://localhost:8181/topic_editor/4'
+        self.assertEqual(
+            run_lighthouse_tests.inject_entities_into_url(url, entities),
+            expected_injected_url,
+        )
+
+    def test_inject_entities_into_url_with_invalid_entity(self) -> None:
+        entities = {'topic_id': '4'}
+        url = 'http://localhost:8181/topic_editor/{{skill_id}}'
+        with self.assertRaisesRegex(
+            ValueError, 'Entity skill_id not found in entities.'
+        ):
+            run_lighthouse_tests.inject_entities_into_url(url, entities)
+
+    def test_inject_entities_into_url_with_multiple_entities(self) -> None:
+        entities = {'topic_id': '4', 'story_id': '5'}
+        url = (
+            'http://localhost:8181/topic_editor/{{topic_id}}/'
+            'story_editor/{{story_id}}'
+        )
+        expected_injected_url = (
+            'http://localhost:8181/topic_editor/4/story_editor/5'
+        )
+        self.assertEqual(
+            run_lighthouse_tests.inject_entities_into_url(url, entities),
+            expected_injected_url,
+        )
+
+    def test_inject_entities_into_url_with_repeated_entity(self) -> None:
+        entities = {'topic_id': '4'}
+        url = 'http://localhost:8181/topic_editor/{{topic_id}}/{{topic_id}}'
+        expected_injected_url = 'http://localhost:8181/topic_editor/4/4'
+        self.assertEqual(
+            run_lighthouse_tests.inject_entities_into_url(url, entities),
+            expected_injected_url,
+        )
+
+    def test_get_lighthouse_pages_config(self) -> None:
+        with self.lighthouse_pages_json_filepath_swap:
+            pages_config = run_lighthouse_tests.get_lighthouse_pages_config()
+            self.assertEqual(
+                pages_config,
+                {
+                    'splash': 'http://localhost:8181/',
+                    'about': 'http://localhost:8181/about',
+                    'contact': 'http://localhost:8181/contact',
+                },
+            )
+
+    def test_get_lighthouse_entities_skips_setup_for_shard_one(self) -> None:
+        swap_run_puppeteer_script = self.swap_with_checks(
+            run_lighthouse_tests,
+            'run_lighthouse_puppeteer_script',
+            lambda *unused_args: {'topic_id': '4'},
+            called=False,
+        )
+        with self.print_swap, swap_run_puppeteer_script:
+            entities = run_lighthouse_tests._get_lighthouse_entities(  # pylint: disable=protected-access
+                1
+            )
+        self.assertEqual(entities, {})
+        self.assertIn(
+            'Shard 1 audits only static public pages; skipping lighthouse '
+            'data setup and login.',
+            self.print_arr,
+        )
+
+    def test_get_lighthouse_entities_runs_setup_for_later_shards(self) -> None:
+        swap_run_puppeteer_script = self.swap_with_checks(
+            run_lighthouse_tests,
+            'run_lighthouse_puppeteer_script',
+            lambda *unused_args: {'topic_id': '4'},
+            expected_args=((True, 2),),
+        )
+        with swap_run_puppeteer_script:
+            entities = run_lighthouse_tests._get_lighthouse_entities(  # pylint: disable=protected-access
+                2, record=True
+            )
+        self.assertEqual(entities, {'topic_id': '4'})
+
+    def test_get_lighthouse_entities_passes_shard_to_setup(self) -> None:
+        swap_run_puppeteer_script = self.swap_with_checks(
+            run_lighthouse_tests,
+            'run_lighthouse_puppeteer_script',
+            lambda *unused_args: {},
+            expected_args=((False, 3),),
+        )
+        with swap_run_puppeteer_script:
+            entities = run_lighthouse_tests._get_lighthouse_entities(  # pylint: disable=protected-access
+                3
+            )
+        self.assertEqual(entities, {})
+
+    def test_get_resolvable_lighthouse_all_urls_skips_unresolvable(
+        self,
+    ) -> None:
+        pages_config = {
+            'about': 'http://localhost:8181/about',
+            'topic-editor': 'http://localhost:8181/topic_editor/{{topic_id}}',
+        }
+        all_urls = run_lighthouse_tests._get_resolvable_lighthouse_all_urls(  # pylint: disable=protected-access
+            list(pages_config.keys()), {}, pages_config
+        )
+        self.assertEqual(all_urls, ['http://localhost:8181/about'])
+
+    def test_run_lighthouse_puppeteer_script_successfully(self) -> None:
+        class MockTask:
+            returncode = 0
+            stdout = io.BytesIO(
+                b'https://oppia.org/create/4\n'
+                + b'https://oppia.org/topic_editor/4\n'
+                + b'https://oppia.org/story_editor/4\n'
+                + b'https://oppia.org/skill_editor/4\n'
+                + b'https://oppia.org/random_page/4\n'
+            )
+            stderr = io.BytesIO(b'Task output.')
+
+            def wait(self) -> None:  # pylint: disable=missing-docstring
+                pass
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap_with_checks(
+            subprocess,
+            'Popen',
+            mock_popen,
+            expected_args=((self.puppeteer_bash_command,),),
+            expected_kwargs=[
+                {
+                    'stdout': -1,
+                    'stderr': -1,
+                    'env': {**os.environ.copy(), 'LIGHTHOUSE_SHARD': '1'},
+                }
+            ],
+        )
+
+        with self.print_swap, swap_popen:
+            run_lighthouse_tests.run_lighthouse_puppeteer_script()
+
+        self.assertIn(
+            'Puppeteer script completed successfully.', self.print_arr
+        )
+
+    def test_run_lighthouse_puppeteer_script_failed(self) -> None:
+        class MockTask:
+            returncode = 1
+            stdout = io.BytesIO(b'https://oppia.org/create/4\n')
+            stderr = io.BytesIO(b'ABC error.')
+
+            def wait(self) -> None:  # pylint: disable=missing-docstring
+                pass
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap_with_checks(
+            subprocess,
+            'Popen',
+            mock_popen,
+            expected_args=((self.puppeteer_bash_command,),),
+            expected_kwargs=[
+                {
+                    'stdout': -1,
+                    'stderr': -1,
+                    'env': {**os.environ.copy(), 'LIGHTHOUSE_SHARD': '1'},
+                }
+            ],
+        )
+
+        with self.print_swap, self.swap_sys_exit, swap_popen:
+            run_lighthouse_tests.run_lighthouse_puppeteer_script()
+
+        self.assertIn('Return code: 1', self.print_arr)
+        self.assertIn('ABC error.', self.print_arr)
+        self.assertIn(
+            'Puppeteer script failed. More details can be found above.',
+            self.print_arr,
+        )
+
+    def test_puppeteer_script_succeeds_when_recording_succeeds(self) -> None:
+        class MockTask:
+            returncode = 0
+            stdout = io.BytesIO(
+                b'https://oppia.org/create/4\n'
+                + b'https://oppia.org/topic_editor/4\n'
+                + b'https://oppia.org/story_editor/4\n'
+                + b'https://oppia.org/skill_editor/4\n'
+            )
+            stderr = io.BytesIO(b'Task output.')
+
+            def wait(self) -> None:  # pylint: disable=missing-docstring
+                pass
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_isfile = self.swap(os.path, 'isfile', lambda _: True)
+        swap_popen = self.swap_with_checks(
+            subprocess,
+            'Popen',
+            mock_popen,
+            expected_args=((self.puppeteer_bash_command + self.extra_args,),),
+            expected_kwargs=[
+                {
+                    'stdout': -1,
+                    'stderr': -1,
+                    'env': {**os.environ.copy(), 'LIGHTHOUSE_SHARD': '1'},
+                }
+            ],
+        )
+
+        with self.print_swap, swap_popen, swap_isfile:
+            run_lighthouse_tests.run_lighthouse_puppeteer_script(record=True)
+
+        self.assertIn(
+            'Puppeteer script completed successfully.', self.print_arr
+        )
+        self.assertIn(
+            'Starting LHCI Puppeteer script with recording.', self.print_arr
+        )
+        self.assertIn(
+            'Resulting puppeteer video saved at %s' % self.extra_args[1],
+            self.print_arr,
+        )
+
+    def test_puppeteer_script_fails_when_recording_succeeds(self) -> None:
+        class MockTask:
+            returncode = 1
+            stdout = io.BytesIO(b'https://oppia.org/create/4\n')
+            stderr = io.BytesIO(b'ABC error.')
+
+            def wait(self) -> None:  # pylint: disable=missing-docstring
+                pass
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_isfile = self.swap(os.path, 'isfile', lambda _: True)
+        swap_popen = self.swap_with_checks(
+            subprocess,
+            'Popen',
+            mock_popen,
+            expected_args=((self.puppeteer_bash_command + self.extra_args,),),
+            expected_kwargs=[
+                {
+                    'stdout': -1,
+                    'stderr': -1,
+                    'env': {**os.environ.copy(), 'LIGHTHOUSE_SHARD': '1'},
+                }
+            ],
+        )
+
+        with self.print_swap, self.swap_sys_exit, swap_popen, swap_isfile:
+            run_lighthouse_tests.run_lighthouse_puppeteer_script(record=True)
+
+        self.assertIn('Return code: 1', self.print_arr)
+        self.assertIn('ABC error.', self.print_arr)
+        self.assertIn(
+            'Puppeteer script failed. More details can be found above.',
+            self.print_arr,
+        )
+        self.assertIn(
+            'Resulting puppeteer video saved at %s' % self.extra_args[1],
+            self.print_arr,
+        )
+
+    def test_run_ng_compilation_successfully(self) -> None:
+        swap_isdir = self.swap_with_checks(
+            os.path, 'isdir', lambda _: True, expected_kwargs=[]
+        )
+
+        with self.print_swap, self.swap_ng_build, swap_isdir:
+            servers.run_ng_compilation()
+
+        self.assertNotIn(
+            'Failed to complete ng compilation, exiting...', self.print_arr
+        )
+
+    def test_run_ng_compilation_failed(self) -> None:
+        swap_isdir = self.swap_with_checks(
+            os.path, 'isdir', lambda _: False, expected_kwargs=[]
+        )
+
+        with self.print_swap, self.swap_ng_build, swap_isdir:
+            with self.swap_sys_exit:
+                servers.run_ng_compilation()
+
+        self.assertIn(
+            'Failed to complete ng build compilation, exiting...',
+            self.print_arr,
+        )
+
+    def test_subprocess_error_results_in_failed_ng_compilation(
+        self,
+    ) -> None:
+        class MockFailedCompiler:
+            def wait(self) -> None:  # pylint: disable=missing-docstring
+                raise subprocess.CalledProcessError(
+                    returncode=1, cmd='', output='Subprocess execution failed.'
+                )
+
+        class MockFailedCompilerContextManager:
+            def __init__(self) -> None:
+                pass
+
+            def __enter__(self) -> MockFailedCompiler:
+                return MockFailedCompiler()
+
+            def __exit__(self, *unused_args: str) -> None:
+                pass
+
+        def mock_failed_context_manager() -> MockFailedCompilerContextManager:
+            return MockFailedCompilerContextManager()
+
+        swap_ng_compiler = self.swap_with_checks(
+            servers,
+            'managed_ng_build',
+            mock_failed_context_manager,
+            expected_args=(),
+            expected_kwargs=[],
+        )
+        swap_isdir = self.swap_with_checks(
+            os.path, 'isdir', lambda _: False, expected_kwargs=[]
+        )
+
+        with self.print_swap, swap_ng_compiler, swap_isdir:
+            with self.swap_sys_exit:
+                servers.run_ng_compilation()
+
+        self.assertIn('Subprocess execution failed.', self.print_arr)
+
+    def test_run_lighthouse_checks_uses_lighthouse_node_on_path(self) -> None:
+        class MockTask:
+            returncode = 0
+
+            def communicate(  # pylint: disable=missing-docstring
+                self,
+            ) -> tuple[bytes, bytes]:
+                return (b'Task output', b'No error.')
+
+        captured_kwargs: dict[str, dict[str, str]] = {}
+
+        def mock_popen(
+            *unused_args: str, **popen_kwargs: dict[str, str]
+        ) -> MockTask:  # pylint: disable=unused-argument
+            captured_kwargs['env'] = popen_kwargs['env']
+            return MockTask()
+
+        swap_popen = self.swap(subprocess, 'Popen', mock_popen)
+
+        with self.print_swap, swap_popen:
+            run_lighthouse_tests.run_lighthouse_checks()
+
+        self.assertEqual(
+            captured_kwargs['env']['PATH'].split(os.pathsep)[0],
+            os.path.dirname(common.LIGHTHOUSE_NODE_BIN_PATH),
+        )
+        self.assertEqual(
+            captured_kwargs['env']['NODE_OPTIONS'],
+            '--max-old-space-size=4096',
+        )
+
+    def test_patch_lighthouse_target_manager_success(self) -> None:
+        file_contents = (
+            'if (/\'Target.getTargetInfo\' wasn\'t found/.test(err)) return;'
+        )
+        temp_file_path: str
+        with tempfile.NamedTemporaryFile(
+            mode='w', suffix='.js', delete=False
+        ) as f:
+            f.write(file_contents)
+            temp_file_path = f.name
+
+        swap_isfile = self.swap(os.path, 'isfile', lambda _: True)
+        swap_join = self.swap(os.path, 'join', lambda *_unused: temp_file_path)
+
+        # Capture the real open before swapping builtins.open below; otherwise
+        # this mock would call itself recursively when reading the patched
+        # target-manager.js file.
+        real_open = open
+
+        # Here we use object because open() can receive arbitrary positional
+        # and keyword arguments whose concrete types are not relevant to the
+        # mock for this test.
+        def mock_open(
+            unused_path: str, mode: str = 'r', **unused_kwargs: object
+        ) -> object:
+            return real_open(temp_file_path, mode, encoding='utf-8')
+
+        swap_open = self.swap(builtins, 'open', mock_open)
+        with self.print_swap, swap_isfile, swap_join, swap_open:
+            run_lighthouse_tests._patch_lighthouse_target_manager()  # pylint: disable=protected-access
+
+        with open(temp_file_path, 'r', encoding='utf-8') as read_file:
+            patched = read_file.read()
+        self.assertIn('/Not allowed/.test(err.message)', patched)
+        self.assertIn(
+            'Patched lighthouse target-manager.js for cross-origin CDP errors.',
+            self.print_arr,
+        )
+        os.remove(temp_file_path)
+
+    def test_patch_lighthouse_target_manager_missing_file(self) -> None:
+        swap_isfile = self.swap(os.path, 'isfile', lambda _: False)
+        with self.print_swap, swap_isfile:
+            with self.assertRaisesRegex(
+                RuntimeError, 'Could not find Lighthouse target-manager.js'
+            ):
+                run_lighthouse_tests._patch_lighthouse_target_manager()  # pylint: disable=protected-access
+
+    def test_patch_lighthouse_target_manager_substitution_not_found(
+        self,
+    ) -> None:
+        with tempfile.NamedTemporaryFile(
+            mode='w', suffix='.js', delete=False
+        ) as f:
+            f.write('unrelated source content')
+            temp_file_path = f.name
+
+        swap_isfile = self.swap(os.path, 'isfile', lambda _: True)
+        swap_join = self.swap(os.path, 'join', lambda *_unused: temp_file_path)
+
+        # Capture the real open before swapping builtins.open below; otherwise
+        # this mock would call itself recursively when reading the patched
+        # target-manager.js file.
+        real_open = open
+
+        # Here we use object because open() can receive arbitrary positional
+        # and keyword arguments whose concrete types are not relevant to the
+        # mock for this test.
+        def mock_open(
+            unused_path: str, mode: str = 'r', **unused_kwargs: object
+        ) -> object:
+            return real_open(temp_file_path, mode, encoding='utf-8')
+
+        swap_open = self.swap(builtins, 'open', mock_open)
+        with self.print_swap, swap_isfile, swap_join, swap_open:
+            with self.assertRaisesRegex(
+                RuntimeError,
+                'the expected upstream source line was not found',
+            ):
+                run_lighthouse_tests._patch_lighthouse_target_manager()  # pylint: disable=protected-access
+        os.remove(temp_file_path)
+
+    def test_get_lighthouse_environment_prepends_lighthouse_node(self) -> None:
+        environ_swap = self.swap(
+            os, 'environ', {'PATH': '/original/path', 'HOME': '/home'}
+        )
+        with environ_swap:
+            env = (
+                run_lighthouse_tests._get_lighthouse_environment()  # pylint: disable=protected-access
+            )
+
+        self.assertEqual(
+            env['PATH'].split(os.pathsep)[0],
+            os.path.dirname(common.LIGHTHOUSE_NODE_BIN_PATH),
+        )
+        self.assertIn('/original/path', env['PATH'])
+        self.assertEqual(env['HOME'], '/home')
+
+    def test_patch_lighthouse_target_manager_when_already_patched(
+        self,
+    ) -> None:
+        file_contents = (
+            'if (/\'Target.getTargetInfo\' wasn\'t found/.test(err)) return;\n'
+            '      if (/Not allowed/.test(err.message)) return;'
+        )
+        temp_file_path: str
+        with tempfile.NamedTemporaryFile(
+            mode='w', suffix='.js', delete=False
+        ) as f:
+            f.write(file_contents)
+            temp_file_path = f.name
+
+        swap_join = self.swap(os.path, 'join', lambda *_unused: temp_file_path)
+
+        # Capture the real open before swapping builtins.open below; otherwise
+        # this mock would call itself recursively when reading the patched
+        # target-manager.js file.
+        real_open = open
+
+        # Here we use object because open() can receive arbitrary arguments
+        # whose concrete types are not relevant to the mock for this test.
+        def mock_open(
+            unused_path: str, mode: str = 'r', encoding: str = 'utf-8'
+        ) -> object:
+            return real_open(temp_file_path, mode, encoding=encoding)
+
+        swap_open = self.swap(builtins, 'open', mock_open)
+        with self.print_swap, swap_join, swap_open:
+            run_lighthouse_tests._patch_lighthouse_target_manager()  # pylint: disable=protected-access
+
+        with open(temp_file_path, 'r', encoding='utf-8') as read_file:
+            content = read_file.read()
+        self.assertEqual(content, file_contents)
+        self.assertNotIn(
+            'Patched lighthouse target-manager.js for cross-origin CDP errors.',
+            self.print_arr,
+        )
+        os.remove(temp_file_path)
+
+    def test_run_lighthouse_checks_succesfully(self) -> None:
+        class MockTask:
+            returncode = 0
+
+            def communicate(  # pylint: disable=missing-docstring
+                self,
+            ) -> tuple[bytes, bytes]:
+                return (b'Task output', b'No error.')
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap_with_checks(
+            subprocess,
+            'Popen',
+            mock_popen,
+            expected_args=(
+                (self.lighthouse_check_bash_command,),
+                (self.lighthouse_desktop_check_bash_command,),
+            ),
+        )
+
+        os.environ['ALL_LIGHTHOUSE_URLS'] = (
+            'http://localhost:8181/,'
+            'http://localhost:8181/about,'
+            'http://localhost:8181/contact'
+        )
+        os.environ['LIGHTHOUSE_URLS_TO_RUN'] = (
+            'http://localhost:8181/, http://localhost:8181/about'
+        )
+        with self.print_swap, swap_popen:
+            run_lighthouse_tests.run_lighthouse_checks()
+
+        self.assertIn(
+            '\033[1m2 out of 3 lighthouse pages run (mobile + desktop), see '
+            'https://github.com/oppia/oppia/wiki/Partial-CI-Tests-Structure '
+            'for more information.\033[0m',
+            self.print_arr,
+        )
+        self.assertIn(
+            'Lighthouse checks completed successfully.', self.print_arr
+        )
+
+    def test_run_lighthouse_checks_succeeds_with_empty_stderr(self) -> None:
+        class MockTask:
+            returncode = 0
+
+            def communicate(  # pylint: disable=missing-docstring
+                self,
+            ) -> tuple[bytes, bytes]:
+                return (b'Task output', b'')
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap_with_checks(
+            subprocess,
+            'Popen',
+            mock_popen,
+            expected_args=(
+                (self.lighthouse_check_bash_command,),
+                (self.lighthouse_desktop_check_bash_command,),
+            ),
+        )
+
+        os.environ['ALL_LIGHTHOUSE_URLS'] = (
+            'http://localhost:8181/,'
+            'http://localhost:8181/about,'
+            'http://localhost:8181/contact'
+        )
+        os.environ['LIGHTHOUSE_URLS_TO_RUN'] = (
+            'http://localhost:8181/, http://localhost:8181/about'
+        )
+        with self.print_swap, swap_popen:
+            run_lighthouse_tests.run_lighthouse_checks()
+
+        self.assertIn(
+            'Lighthouse checks completed successfully.', self.print_arr
+        )
+
+    def test_run_lighthouse_checks_succeeds_with_warning_only_stderr(
+        self,
+    ) -> None:
+        class MockTask:
+            returncode = 0
+
+            def communicate(  # pylint: disable=missing-docstring
+                self,
+            ) -> tuple[bytes, bytes]:
+                return (
+                    b'Task output',
+                    '\u26a0\ufe0f warning message\n'.encode('utf-8'),
+                )
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap_with_checks(
+            subprocess,
+            'Popen',
+            mock_popen,
+            expected_args=(
+                (self.lighthouse_check_bash_command,),
+                (self.lighthouse_desktop_check_bash_command,),
+            ),
+        )
+
+        os.environ['ALL_LIGHTHOUSE_URLS'] = (
+            'http://localhost:8181/,'
+            'http://localhost:8181/about,'
+            'http://localhost:8181/contact'
+        )
+        os.environ['LIGHTHOUSE_URLS_TO_RUN'] = (
+            'http://localhost:8181/, http://localhost:8181/about'
+        )
+        with self.print_swap, swap_popen:
+            run_lighthouse_tests.run_lighthouse_checks()
+
+        self.assertIn(
+            'Lighthouse checks completed successfully.', self.print_arr
+        )
+
+    def test_run_lighthouse_checks_failed(self) -> None:
+        class MockTask:
+            returncode = 1
+
+            def communicate(  # pylint: disable=missing-docstring
+                self,
+            ) -> tuple[bytes, bytes]:
+                return (b'Task failed.', b'ABC error.')
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap_with_checks(
+            subprocess,
+            'Popen',
+            mock_popen,
+            expected_args=(
+                (self.lighthouse_check_bash_command,),
+                (self.lighthouse_desktop_check_bash_command,),
+            ),
+        )
+
+        os.environ['ALL_LIGHTHOUSE_URLS'] = (
+            'http://localhost:8181/,'
+            'http://localhost:8181/about,'
+            'http://localhost:8181/contact'
+        )
+        os.environ['LIGHTHOUSE_URLS_TO_RUN'] = (
+            'http://localhost:8181/, http://localhost:8181/about'
+        )
+        with self.print_swap, self.swap_sys_exit, swap_popen:
+            run_lighthouse_tests.run_lighthouse_checks()
+
+        self.assertIn('Return code: 1', self.print_arr)
+        self.assertIn('ABC error.', self.print_arr)
+        self.assertIn(
+            'Lighthouse checks failed. More details can be found above.',
+            self.print_arr,
+        )
+
+    def test_run_lighthouse_tests_successfully(self) -> None:
+        class MockTask:
+            returncode = 0
+
+            def communicate(  # pylint: disable=missing-docstring
+                self,
+            ) -> tuple[bytes, bytes]:
+                return (b'Task output', b'No error.')
+
+        swap_run_lighthouse_tests = self.swap_with_checks(
+            run_lighthouse_tests,
+            'run_lighthouse_checks',
+            lambda *unused_args: None,
+            expected_args=[()],
+        )
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap(subprocess, 'Popen', mock_popen)
+        swap_isdir = self.swap(os.path, 'isdir', lambda _: True)
+        swap_build = self.swap_with_checks(
+            build,
+            'main',
+            lambda args: None,
+            expected_kwargs=[{'args': []}, {'args': ['--prod_env']}],
+        )
+
+        with self.print_swap, swap_isdir:
+            with self.swap_dev_appserver:
+                with self.swap_redis_server, self.swap_cloud_datastore_emulator:
+                    with self.swap_firebase_auth_emulator, self.swap_ng_build:
+                        with swap_build, swap_popen, swap_run_lighthouse_tests:
+                            with (
+                                self.lighthouse_pages_json_filepath_swap,
+                                self.lighthouse_shards_json_filepath_swap,
+                            ):
+                                run_lighthouse_tests.main(args=['--shard', '1'])
+                                expected_all_lighthouse_urls = ','.join(
+                                    [
+                                        'http://localhost:8181/',
+                                        'http://localhost:8181/about',
+                                        'http://localhost:8181/contact',
+                                    ]
+                                )
+                                self.assertEqual(
+                                    os.environ['ALL_LIGHTHOUSE_URLS'],
+                                    expected_all_lighthouse_urls,
+                                )
+                                expected_lighthouse_urls_to_run = ','.join(
+                                    [
+                                        'http://localhost:8181/',
+                                        'http://localhost:8181/about',
+                                    ]
+                                )
+                                self.assertEqual(
+                                    os.environ['LIGHTHOUSE_URLS_TO_RUN'],
+                                    expected_lighthouse_urls_to_run,
+                                )
+
+        self.assertIn(
+            'Building files in development mode for setup.', self.print_arr
+        )
+        self.assertIn('Building files in production mode.', self.print_arr)
+        self.assertIn(
+            'Shard 1 audits only static public pages; skipping lighthouse '
+            'data setup and login.',
+            self.print_arr,
+        )
+        self.assertNotIn(
+            'Puppeteer script completed successfully.', self.print_arr
+        )
+
+    def test_run_lighthouse_tests_with_specific_pages(self) -> None:
+        class MockTask:
+            returncode = 0
+
+            def communicate(  # pylint: disable=missing-docstring
+                self,
+            ) -> tuple[bytes, bytes]:
+                return (b'Task output', b'No error.')
+
+        swap_run_lighthouse_tests = self.swap_with_checks(
+            run_lighthouse_tests,
+            'run_lighthouse_checks',
+            lambda *unused_args: None,
+            expected_args=[()],
+        )
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap(subprocess, 'Popen', mock_popen)
+        swap_isdir = self.swap(os.path, 'isdir', lambda _: True)
+        swap_build = self.swap_with_checks(
+            build,
+            'main',
+            lambda args: None,
+            expected_kwargs=[{'args': []}, {'args': ['--prod_env']}],
+        )
+
+        with self.print_swap, swap_isdir:
+            with self.swap_dev_appserver:
+                with self.swap_redis_server, self.swap_cloud_datastore_emulator:
+                    with self.swap_firebase_auth_emulator, self.swap_ng_build:
+                        with swap_build, swap_popen, swap_run_lighthouse_tests:
+                            with self.lighthouse_pages_json_filepath_swap:
+                                run_lighthouse_tests.main(
+                                    args=[
+                                        '--shard',
+                                        '1',
+                                        '--pages',
+                                        'splash, about',
+                                    ]
+                                )
+                                expected_all_lighthouse_urls = ','.join(
+                                    [
+                                        'http://localhost:8181/',
+                                        'http://localhost:8181/about',
+                                        'http://localhost:8181/contact',
+                                    ]
+                                )
+                                expected_lighthouse_urls_to_run = ','.join(
+                                    [
+                                        'http://localhost:8181/',
+                                        'http://localhost:8181/about',
+                                    ]
+                                )
+                                self.assertEqual(
+                                    os.environ['ALL_LIGHTHOUSE_URLS'],
+                                    expected_all_lighthouse_urls,
+                                )
+                                self.assertEqual(
+                                    os.environ['LIGHTHOUSE_URLS_TO_RUN'],
+                                    expected_lighthouse_urls_to_run,
+                                )
+
+        self.assertIn(
+            'Building files in development mode for setup.', self.print_arr
+        )
+        self.assertIn('Building files in production mode.', self.print_arr)
+        self.assertIn(
+            'Shard 1 audits only static public pages; skipping lighthouse '
+            'data setup and login.',
+            self.print_arr,
+        )
+
+    def test_run_lighthouse_tests_with_skip_build(self) -> None:
+        class MockTask:
+            returncode = 0
+
+            def communicate(  # pylint: disable=missing-docstring
+                self,
+            ) -> tuple[bytes, bytes]:
+                return (b'Task output', b'No error.')
+
+        swap_run_lighthouse_tests = self.swap_with_checks(
+            run_lighthouse_tests,
+            'run_lighthouse_checks',
+            lambda *unused_args: None,
+            expected_args=[()],
+        )
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap(subprocess, 'Popen', mock_popen)
+        swap_isdir = self.swap(os.path, 'isdir', lambda _: True)
+
+        def mock_build_main(args: list[str]) -> None:
+            raise AssertionError(
+                'build.main should not be called when --skip_build is used.'
+            )
+
+        swap_build = self.swap(build, 'main', mock_build_main)
+        swap_modify_constants = self.swap_with_checks(
+            common,
+            'modify_constants',
+            lambda **unused_kwargs: None,
+            expected_kwargs=[
+                {'prod_env': False, 'emulator_mode': True},
+                {'prod_env': True, 'emulator_mode': True},
+            ],
+        )
+        swap_write_hashes_json_file = self.swap_with_checks(
+            common,
+            'write_hashes_json_file',
+            lambda unused_file_hashes: None,
+            expected_args=[({},)],
+        )
+        swap_emulator_mode = self.swap(constants, 'EMULATOR_MODE', False)
+        with swap_popen, swap_isdir, swap_build:
+            with self.swap_dev_appserver:
+                with self.swap_ng_build, swap_emulator_mode, self.print_swap:
+                    with swap_modify_constants, swap_write_hashes_json_file:
+                        with self.swap_redis_server, swap_run_lighthouse_tests:
+                            with self.lighthouse_pages_json_filepath_swap:
+                                run_lighthouse_tests.main(
+                                    args=[
+                                        '--skip_build',
+                                        '--shard',
+                                        '1',
+                                        '--pages',
+                                        'splash',
+                                    ]
+                                )
+
+        self.assertIn(
+            'Building files in development mode for setup skipping clean build.',
+            self.print_arr,
+        )
+        self.assertIn(
+            'Restoring production constants for Lighthouse checks.',
+            self.print_arr,
+        )
+        self.assertIn(
+            'Shard 1 audits only static public pages; skipping lighthouse '
+            'data setup and login.',
+            self.print_arr,
+        )
+
+    def test_main_function_calls_puppeteer_record(self) -> None:
+        class MockTask:
+            returncode = 0
+
+            def communicate(  # pylint: disable=missing-docstring
+                self,
+            ) -> tuple[bytes, bytes]:
+                return (b'Task output', b'No error.')
+
+        def mock_run_puppeteer_script(*unused_args: str) -> dict[str, str]:
+            return {
+                'topic_id': '4',
+            }
+
+        # Set up pseudo-chrome path env variable.
+        for path in common.CHROME_PATHS:
+            if os.path.isfile(path):
+                os.environ['CHROME_BIN'] = path
+                break
+        swap_dev_appserver = self.swap(
+            servers,
+            'managed_dev_appserver',
+            lambda *unused_args, **unused_kwargs: MockCompilerContextManager(),
+        )
+        swap_run_puppeteer_script = self.swap_with_checks(
+            run_lighthouse_tests,
+            'run_lighthouse_puppeteer_script',
+            mock_run_puppeteer_script,
+            expected_args=((True, 2),),
+        )
+        swap_run_lighthouse_tests = self.swap_with_checks(
+            run_lighthouse_tests,
+            'run_lighthouse_checks',
+            lambda *unused_args: None,
+            expected_args=[()],
+        )
+
+        def mock_popen(
+            *unused_args: str, **unused_kwargs: str
+        ) -> MockTask:  # pylint: disable=unused-argument
+            return MockTask()
+
+        swap_popen = self.swap(subprocess, 'Popen', mock_popen)
+        swap_isdir = self.swap(os.path, 'isdir', lambda _: True)
+
+        def mock_build_main(args: list[str]) -> None:
+            raise AssertionError(
+                'build.main should not be called when --skip_build is used.'
+            )
+
+        swap_build = self.swap(build, 'main', mock_build_main)
+        swap_modify_constants = self.swap_with_checks(
+            common,
+            'modify_constants',
+            lambda **unused_kwargs: None,
+            expected_kwargs=[
+                {'prod_env': False, 'emulator_mode': True},
+                {'prod_env': True, 'emulator_mode': True},
+            ],
+        )
+        swap_write_hashes_json_file = self.swap_with_checks(
+            common,
+            'write_hashes_json_file',
+            lambda unused_file_hashes: None,
+            expected_args=[({},)],
+        )
+        swap_emulator_mode = self.swap(constants, 'EMULATOR_MODE', False)
+        swap_popen = self.swap(subprocess, 'Popen', mock_popen)
+        swap_isdir = self.swap(os.path, 'isdir', lambda _: True)
+
+        with swap_popen, swap_isdir, swap_build:
+            with swap_dev_appserver:
+                with self.swap_ng_build, swap_emulator_mode, self.print_swap:
+                    with swap_modify_constants, swap_write_hashes_json_file:
+                        with self.swap_redis_server, swap_run_lighthouse_tests:
+                            with swap_run_puppeteer_script:
+                                with (
+                                    self.lighthouse_pages_json_filepath_with_entities_swap,
+                                    self.lighthouse_shards_json_filepath_with_entities_swap,
+                                ):
+                                    run_lighthouse_tests.main(
+                                        args=[
+                                            '--skip_build',
+                                            '--record_screen',
+                                            '--shard',
+                                            '2',
+                                        ]
+                                    )
+
+    def test_run_lighthouse_puppeteer_script_creates_directory_when_not_exists(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_working_dir = os.path.join(temp_dir, 'cwd')
+            os.mkdir(tmp_working_dir)
+
+            expected_dir = os.path.join(
+                tmp_working_dir, '..', 'lhci-puppeteer-video'
+            )
+
+            self.assertFalse(os.path.exists(expected_dir))
+
+            class MockProcess:
+                # Here we use object because subprocess.Popen can receive arbitrary
+                # positional and keyword arguments, and their concrete types are not
+                # relevant for this test.
+                def __init__(
+                    self,
+                    *unused_args: object,
+                    **unused_kwargs: object,
+                ) -> None:
+                    self.returncode = 0
+                    self.stdout = io.BytesIO(b'topic:123\n')
+                    self.stderr = io.BytesIO(b'')
+
+                def wait(self) -> None:  # pylint: disable=missing-docstring
+                    pass
+
+            with (
+                self.swap(os, 'getcwd', lambda: tmp_working_dir),
+                self.swap(subprocess, 'Popen', MockProcess),
+                self.swap(
+                    run_lighthouse_tests,
+                    'get_entity',
+                    lambda line: ('topic', '123') if 'topic' in line else None,
+                ),
+                self.swap(common, 'LIGHTHOUSE_NODE_BIN_PATH', '/usr/bin/node'),
+                self.print_swap,
+            ):
+                entities = run_lighthouse_tests.run_lighthouse_puppeteer_script(
+                    record=True
+                )
+
+            self.assertTrue(os.path.isdir(expected_dir))
+            self.assertEqual(entities, {'topic': '123'})

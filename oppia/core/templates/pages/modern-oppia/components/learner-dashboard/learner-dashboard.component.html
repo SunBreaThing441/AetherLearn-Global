@@ -1,0 +1,76 @@
+<div class="dashboard-container" role="main">
+  <!-- Dashboard Hero -->
+  <div class="dashboard-hero">
+    <div class="hero-content">
+      <span class="hero-badge">UNESCO SDG 4 LEARNING HUB</span>
+      <h2>My Learning Journey</h2>
+      <p>Track your interactive explorations, master competencies, and earn open digital credentials.</p>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading$ | async">
+    <div class="spinner"></div>
+    <p>Loading your learning portfolio...</p>
+  </div>
+
+  <div class="dashboard-sections" *ngIf="!(isLoading$ | async)">
+    <!-- In Progress Section -->
+    <section class="dashboard-section">
+      <div class="section-header">
+        <h3>🚀 In Progress Explorations</h3>
+      </div>
+
+      <div class="cards-grid" *ngIf="(inProgress$ | async)?.length; else emptyInProgress">
+        <div class="exploration-card" *ngFor="let exp of inProgress$ | async">
+          <div class="card-meta">
+            <span class="category-badge">{{ exp.category || 'General' }}</span>
+            <span class="lang-badge">{{ exp.language_code || 'en' }}</span>
+          </div>
+          <h4 class="card-title">{{ exp.title }}</h4>
+          <p class="card-objective">{{ exp.objective }}</p>
+          <div class="card-actions">
+            <button type="button" class="action-btn resume-btn" (click)="onPlay(exp.id)">
+              Resume Lesson ➔
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #emptyInProgress>
+        <div class="empty-state">
+          <p>No active explorations in progress. Explore the community library to start learning!</p>
+        </div>
+      </ng-template>
+    </section>
+
+    <!-- Completed Section -->
+    <section class="dashboard-section">
+      <div class="section-header">
+        <h3>🏆 Completed Explorations & Badges</h3>
+      </div>
+
+      <div class="cards-grid" *ngIf="(completed$ | async)?.length; else emptyCompleted">
+        <div class="exploration-card completed-card" *ngFor="let exp of completed$ | async">
+          <div class="badge-ribbon">100% Mastery</div>
+          <div class="card-meta">
+            <span class="category-badge">{{ exp.category || 'Science' }}</span>
+          </div>
+          <h4 class="card-title">{{ exp.title }}</h4>
+          <p class="card-objective">{{ exp.objective }}</p>
+          <div class="card-actions">
+            <button type="button" class="action-btn review-btn" (click)="onPlay(exp.id)">
+              Review Lesson
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #emptyCompleted>
+        <div class="empty-state">
+          <p>You haven't completed any explorations yet. Complete interactive lessons to earn achievements!</p>
+        </div>
+      </ng-template>
+    </section>
+  </div>
+</div>

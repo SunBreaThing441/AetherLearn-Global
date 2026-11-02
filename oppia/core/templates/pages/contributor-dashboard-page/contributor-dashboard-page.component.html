@@ -1,0 +1,185 @@
+<div>
+  <div class="oppia-contributor-home e2e-test-oppia-contributor-home">
+    <div class="oppia-opportunities-tabs">
+      <ul class="oppia-opportunities-tabs-list" *ngIf="tabsDetails">
+        <li [ngClass]="{'oppia-active-opportunities-tab e2e-test-active-tab': item.key === activeTabName}"
+            class="oppia-opportunities-tab-item e2e-test-contribution-tab"
+            *ngFor="let item of tabsDetails | keyvalue"
+            [attr.aria-label]="item.value.ariaLabel">
+          <div *ngIf="item.value.enabled"
+               class="oppia-tabs-container">
+            <a role="button"
+               (click)="onTabClick(item.key)"
+               href="javascript:void(0);"
+               class="oppia-opportunities-tabs-text e2e-test-{{item.key}}">
+              {{item.value.tabName}}
+            </a>
+            <div class="oppia-active-tab-highlighter"></div>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+    <div>
+      <div class="oppia-opportunities-tab-customization-container">
+        <div class="oppia-opportunities-tab-header"
+             *ngIf="activeTabName === 'myContributionTab'">
+          <div class="oppia-outer-container">
+            <div class="oppia-user-and-rights">
+              <div class="oppia-profile-details-container">
+                <picture *ngIf="profilePicturePngDataUrl">
+                  <source type="image/webp" [srcset]="profilePictureWebpDataUrl">
+                  <source type="image/png" [srcset]="profilePicturePngDataUrl">
+                  <img [src]="profilePicturePngDataUrl"
+                       class="rounded-circle"
+                       alt="User Avatar">
+                </picture>
+                <span *ngIf="!profilePicturePngDataUrl">
+                  <i class="fas fa-user-circle oppia-profile-picture-icon"></i>
+                </span>
+              </div>
+              <div class="oppia-contributor-username-and-review-rights-container">
+                <div class="oppia-short-contributor-username-container"
+                     *ngIf="userIsLoggedIn && username.length <= 8"
+                     [attr.data-tab-name]="'username'">
+                  <lazy-loading [hidden]="!userInfoIsLoading"></lazy-loading>
+                  <h1 class="e2e-test-username"
+                      [hidden]="userInfoIsLoading">
+                      {{ username }}
+                  </h1>
+                </div>
+                <div class="oppia-long-contributor-username-container"
+                     *ngIf="userIsLoggedIn && username.length > 8"
+                     [attr.data-tab-name]="'username'">
+                  <lazy-loading [hidden]="!userInfoIsLoading"></lazy-loading>
+                  <h1 class="e2e-test-username"
+                      [hidden]="userInfoIsLoading">
+                      {{ username }}
+                  </h1>
+                </div>
+                <div class="oppia-short-contributor-username-container"
+                     *ngIf="!userIsLoggedIn"
+                     [attr.data-tab-name]="'username'">
+                  <lazy-loading [hidden]="!userInfoIsLoading"></lazy-loading>
+                  <h1 class="e2e-test-username"
+                      [hidden]="userInfoIsLoading">
+                      Guest
+                  </h1>
+                </div>
+                <div class="oppia-review-right-details-container e2e-test-review-rights"
+                     tabindex="0"
+                     *ngIf="userIsReviewer">
+                  <strong>Review rights:</strong>
+                  <div *ngIf="userCanReviewTranslationSuggestionsInLanguages.length > 0">
+                    Translations in languages:
+                    <div class="oppia-language-container">
+                      <span *ngFor="let languageDescription of userCanReviewTranslationSuggestionsInLanguages">
+                        <div class="oppia-review-item-detail-container e2e-test-translation-{{provideLanguageForProtractorClass(languageDescription)}}-reviewer">
+                          {{languageDescription}}
+                        </div>
+                      </span>
+                    </div>
+                  </div>
+                  <div *ngIf="userCanReviewVoiceoverSuggestionsInLanguages.length > 0">
+                    Voiceovers in languages:
+                    <div class="oppia-language-container">
+                      <span *ngFor="let languageDescription of userCanReviewVoiceoverSuggestionsInLanguages">
+                        <span class="oppia-review-item-detail-container e2e-test-voiceover-{{provideLanguageForProtractorClass(languageDescription)}}-reviewer">
+                          {{languageDescription}}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                  <div *ngIf="userCanReviewQuestions"
+                       class="e2e-test-question-reviewer">
+                    Questions
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="oppia-dropdown-container"
+                 *ngIf="showTopicSelector() || showEntityTypeSelector()">
+              <div class="oppia-dropdown-row">
+                <div class="oppia-dashboard-topic-container" *ngIf="showTopicSelector()">
+                  <span class="oppia-dashboard-topic-container-label">Filter by Topic</span>
+                  <translation-topic-selector class="oppia-topic-selector"
+                                              [activeTopicName]="topicName"
+                                              (setActiveTopicName)="onChangeTopic($event)">
+                  </translation-topic-selector>
+                </div>
+                <div class="oppia-dashboard-entity-type-container" *ngIf="showEntityTypeSelector()">
+                  <div class="oppia-dashboard-entity-type-container-label" tabindex="0">Content Type</div>
+                  <entity-type-selector class="oppia-entity-type-selector"
+                                        [activeEntityType]="activeEntityType"
+                                        (setActiveEntityType)="onChangeEntityType($event)">
+                  </entity-type-selector>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="oppia-opportunities-tab-header"
+             *ngIf="activeTabName !== 'myContributionTab'">
+          <div class="oppia-outer-container">
+            <div class="oppia-mascot-container">
+              <div class="oppia-mascot-avatar-container">
+                <img class="oppia-mascot-avatar"
+                     [src]="OPPIA_AVATAR_IMAGE_URL"
+                     alt="">
+              </div>
+              <div class="oppia-explanation-container">
+                <div class="oppia-opportunities-tabs-explanation">
+                  <div class="oppia-opportunities-tabs-explanation-before">
+                    <h1 class="e2e-test-active-tab-name">{{tabsDetails[activeTabName].tabName}}</h1>
+                  </div>
+                  <h2 class="e2e-test-active-tab-description">{{tabsDetails[activeTabName].description}}</h2>
+                </div>
+              </div>
+            </div>
+            <div class="oppia-dropdown-container"
+                 *ngIf="showLanguageSelector() || showTopicSelector() || showEntityTypeSelector()">
+              <div class="oppia-dropdown-row">
+                <div class="oppia-dashboard-language-container"
+                     *ngIf="showLanguageSelector()">
+                  <div class="oppia-dashboard-language-container-label" tabindex="0">Translate to</div>
+                  <translation-language-selector class="oppia-language-selector"
+                                                 [activeLanguageCode]="languageCode"
+                                                 (setActiveLanguageCode)="onChangeLanguage($event)">
+                  </translation-language-selector>
+                </div>
+                <div class="oppia-dashboard-topic-container" *ngIf="showTopicSelector()">
+                  <div class="oppia-dashboard-topic-container-label" tabindex="0">Subject</div>
+                  <translation-topic-selector class="oppia-topic-selector"
+                                              [activeTopicName]="topicName"
+                                              (setActiveTopicName)="onChangeTopic($event)">
+                  </translation-topic-selector>
+                </div>
+                <div class="oppia-dashboard-entity-type-container" *ngIf="showEntityTypeSelector()">
+                  <div class="oppia-dashboard-entity-type-container-label" tabindex="0">Content Type</div>
+                  <entity-type-selector class="oppia-entity-type-selector"
+                                        [activeEntityType]="activeEntityType"
+                                        (setActiveEntityType)="onChangeEntityType($event)">
+                  </entity-type-selector>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div *ngIf="activeTabName === 'myContributionTab' || !activeTabName">
+    <oppia-contributions-and-review [activeTopicName]="topicName" [activeEntityType]="activeEntityType">
+    </oppia-contributions-and-review>
+  </div>
+  <div *ngIf="activeTabName === 'submitQuestionTab'"
+       class="oppia-opportunities">
+    <oppia-question-opportunities>
+    </oppia-question-opportunities>
+  </div>
+  <div *ngIf="activeTabName === 'translateTextTab'"
+       class="oppia-opportunities">
+    <oppia-translation-opportunities [activeEntityType]="activeEntityType">
+    </oppia-translation-opportunities>
+  </div>
+</div>

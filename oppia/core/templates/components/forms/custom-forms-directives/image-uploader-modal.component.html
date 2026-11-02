@@ -1,0 +1,102 @@
+<div class="oppia-image-uploader-modal-container e2e-test-image-uploader-modal">
+  <div class="modal-header">
+    <h3>{{ 'I18N_IMAGE_UPLOADER_MODAL_UPLOAD_HEADING' | translate:{ imageName: imageUploaderParameters.imageName } }}</h3>
+  </div>
+
+  <div class="modal-body oppia-image-uploader-container">
+    <div *ngIf="(isThumbnail() && !isImageUploaded())">
+      <strong tabindex="0">Please upload an SVG image.</strong>
+      <div class="alert alert-warning" tabindex="0">
+        <span>Here are some guidelines to follow:</span>
+        <ul>
+          <li>Uploaded image should have a transparent background.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="oppia-image-uploader">
+      <div *ngIf="!isImageUploaded()">
+        <oppia-image-receiver (fileChanged)="onFileChanged($event)" [allowedImageFormats]="imageUploaderParameters.allowedImageFormats"
+          [maxImageSizeInKB]="imageUploaderParameters.maxImageSizeInKB">
+        </oppia-image-receiver>
+      </div>
+      <div class="oppia-form-error oppia-form-error-text" *ngIf="invalidImageWarningIsShown">
+        {{ 'I18N_IMAGE_UPLOAD_ERROR' | translate }}
+      </div>
+      <div *ngIf="(isThumbnail() && uploadedImage)">
+        <div>
+          <div *ngIf="hasMoreThanOneBgColor()">
+            <div>Choose background color:</div>
+            <div class="oppia-thumbnail-colour-select">
+              <div *ngFor="let color of imageUploaderParameters.allowedBgColors" [ngStyle]="{'background': color}"
+                   (click)="updateBackgroundColor(color)">
+              </div>
+            </div>
+          </div>
+          <div *ngIf="imageUploaderParameters.allowedBgColors.length === 1" class="alert alert-warning">
+            <span>
+              Please check that the {{imageUploaderParameters.imageName.toLowerCase()}} below has the following background color:
+              <i class="fa fa-square" [ngStyle]="{'color': imageUploaderParameters.allowedBgColors[0]}"></i>.
+              If not, please ensure that you are uploading an image with transparent background. Thanks!
+            </span>
+          </div>
+        </div>
+        <div class="oppia-thumbnail-container e2e-test-thumbnail-container" *ngIf="uploadedImage"
+          [ngStyle]="{'background': imageUploaderParameters.previewDescriptionBgColor, 'color': imageUploaderParameters.previewDescriptionBgColor ? '#FFFFFF' : '', 'width': imageUploaderParameters.aspectRatio === '4:3' ? '248px' : '320px' }">
+          <button class="btn btn-secondary oppia-thumbnail-reset-button e2e-thumbnail-reset-button e2e-test-thumbnail-reset-button"
+                  (click)="reset()">
+            <i class="fas fa-times oppia-vcenter"></i>
+          </button>
+          <div>
+            <oppia-thumbnail-display *ngIf="uploadedImage" [classes]="['oppia-thumbnail-image']"
+              [imgSrc]="$any(uploadedImage)" [aspectRatio]="'16:9'" [background]="imageUploaderParameters.bgColor">
+            </oppia-thumbnail-display>
+            <div *ngIf="imageUploaderParameters.previewTitle" class="oppia-thumbnail-preview-title">
+              {{ imageUploaderParameters.previewTitle }}
+            </div>
+            <div *ngIf="imageUploaderParameters.previewDescription" class="oppia-thumbnail-preview-description">
+              {{ imageUploaderParameters.previewDescription }}
+            </div>
+            <div *ngIf="imageUploaderParameters.previewFooter" class="oppia-thumbnail-preview-footer">
+              {{ imageUploaderParameters.previewFooter }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="(!isThumbnail() && uploadedImage)">
+        <span>{{ 'I18N_IMAGE_UPLOADER_MODAL_DRAG' | translate }}</span>
+        <div class="oppia-image-uploader-modal-crop-area e2e-test-photo-crop">
+          <button class="btn btn-secondary oppia-image-uploader-modal-reset-button" aria-label="close"
+                  (click)="reset()">
+            <i class="fas fa-times oppia-vcenter"></i>
+          </button>
+          <img id="croppable-image" [src]="uploadedImage" #croppableImage>
+        </div>
+        <div *ngIf="hasMoreThanOneBgColor()">
+          <div class="bg-color-text">
+            Choose background color:
+            <div class="oppia-bg-color-container" [ngStyle]="{'background': imageUploaderParameters.bgColor}"></div>
+          </div>
+          <div class="oppia-thumbnail-colour-select">
+            <div *ngFor="let color of imageUploaderParameters.allowedBgColors" [ngStyle]="{'background': color}"
+                 (click)="updateBackgroundColor(color)">
+            </div>
+          </div>
+        </div>
+        <div *ngIf="areInvalidTagsOrAttrsPresent()"
+             class="oppia-unsupported-svg-tag-attribute-error"
+             [innerHTML]="'I18N_INVALID_TAGS_AND_ATTRIBUTES_ALERT' | translate: { issueURL: getIssueURL(invalidTagsAndAttributes) }">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="cancel()">
+      {{ 'I18N_IMAGE_UPLOADER_MODAL_CANCEL_BUTTON' | translate }}
+    </button>
+    <button class="btn btn-success e2e-test-photo-upload-submit" (click)="confirm()" [disabled]="!uploadedImage">
+      {{ 'I18N_IMAGE_UPLOADER_MODAL_ADD_BUTTON' | translate:{ imageName: imageUploaderParameters.imageName } }}
+    </button>
+  </div>
+</div>

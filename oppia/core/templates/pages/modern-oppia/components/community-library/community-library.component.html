@@ -1,0 +1,78 @@
+<div class="library-container" role="main">
+  <!-- Library Hero -->
+  <div class="library-hero">
+    <div class="hero-badge">OPEN EDUCATIONAL RESOURCES</div>
+    <h2>Interactive Exploration Library</h2>
+    <p>Empowering learners worldwide through freely accessible, self-paced, conversational learning.</p>
+
+    <!-- Search Bar -->
+    <div class="search-bar-wrap">
+      <span class="search-icon">🔍</span>
+      <input 
+        type="text" 
+        class="search-input" 
+        [(ngModel)]="searchQuery" 
+        (ngModelChange)="filterExplorations()"
+        placeholder="Search lessons by title, topic, or keyword..."
+        aria-label="Search lessons">
+    </div>
+  </div>
+
+  <!-- Featured UNESCO Curriculum Pathways (from /classroomdatahandler) -->
+  <section class="curriculum-tracks-section" *ngIf="curriculumTopics.length > 0">
+    <div class="section-badge">UNESCO SDG 4 VERIFIED PATHWAYS</div>
+    <h3 class="section-title">Structured Curriculum Tracks</h3>
+    <div class="curriculum-grid">
+      <div class="curriculum-card" *ngFor="let topic of curriculumTopics">
+        <div class="track-header">
+          <span class="track-icon">📐</span>
+          <span class="track-chapters">{{ topic.canonicalStoryCount }} Chapters</span>
+        </div>
+        <h4 class="track-title">{{ topic.name }}</h4>
+        <p class="track-desc">{{ topic.description }}</p>
+        <div class="track-footer">
+          <span class="track-skills">🎯 {{ topic.totalSkillCount }} Core Skills</span>
+          <button class="track-start-btn" (click)="onPlay('fractions')">Launch Pathway ➔</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Category Filter Pills -->
+  <div class="category-filters" role="tablist" aria-label="Filter by subject category">
+    <button 
+      type="button" 
+      *ngFor="let cat of categories"
+      class="cat-pill"
+      [class.active]="selectedCategory === cat"
+      (click)="onSelectCategory(cat)">
+      {{ cat }}
+    </button>
+  </div>
+
+  <!-- Explorations Grid -->
+  <div class="library-grid" *ngIf="filteredExplorations.length; else noResults">
+    <div class="lib-card" *ngFor="let exp of filteredExplorations">
+      <div class="card-top">
+        <span class="cat-tag">{{ exp.category }}</span>
+        <span class="lang-tag">{{ exp.language_code.toUpperCase() }}</span>
+      </div>
+      <h3 class="card-title">{{ exp.title }}</h3>
+      <p class="card-desc">{{ exp.objective }}</p>
+      <div class="card-tags">
+        <span class="tag" *ngFor="let t of exp.tags">#{{ t }}</span>
+      </div>
+      <div class="card-footer">
+        <button type="button" class="play-btn" (click)="onPlay(exp.id)">
+          Start Exploration ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #noResults>
+    <div class="empty-library">
+      <p>No explorations matched your search query "{{ searchQuery }}". Try clearing your filters!</p>
+    </div>
+  </ng-template>
+</div>

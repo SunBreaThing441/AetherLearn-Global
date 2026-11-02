@@ -1,0 +1,14 @@
+<div class="nav navbar-nav oppia-navbar-breadcrumb" [ngClass]="{'main-blog-dashboard-mobile-breadcrumb': activeTab === 'main'}">
+  <span class="oppia-navbar-breadcrumb-separator"></span>
+  <span class="pt-3 mobile-navbar-blog-dashboard" *ngIf="activeTab === 'main'">
+    Blog Dashboard
+  </span>
+  <div class="d-flex flex-column pt-2 blog-title" *ngIf="activeTab === 'editor_tab'">
+    <p class="oppia-blog-dashboard-title"
+       role="button"
+       (click)="navigateToMainTab()">
+      Blog Dashboard
+    </p>
+    <p class="oppia-blog-post-title pt-1 blog-title-p">{{ title }}</p>
+  </div>
+</div>

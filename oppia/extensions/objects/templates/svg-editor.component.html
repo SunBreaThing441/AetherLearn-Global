@@ -1,0 +1,311 @@
+<div class="fs-container svg-editor">
+  <div *ngIf="!isDiagramSaved()" class="diagram-editor-size-toolbar">
+    <div class="input-box">
+      Width:&nbsp;
+      <input type="number" [(ngModel)]="diagramWidth" (blur)="onWidthInputBlur()">
+    </div>
+    <div class="input-box">
+      Height:&nbsp;
+      <input type="number" [(ngModel)]="diagramHeight" (blur)="onHeightInputBlur()">
+    </div>
+    <div class="dimension-note">
+      This diagram has a maximum dimension of 490 X 550 px. Changes made to the dimensions will
+      be reflected after "Use this Image" button is clicked.
+    </div>
+  </div>
+  <div class="svg-editor" *ngIf="!isDiagramSaved()" [style.min-height.px]="diagramHeight + SVG_EDITOR_TOOLBAR_HEIGHT_PX">
+    <div class="fabric-canvas" [attr.id]="canvasContainerId">
+      <canvas [attr.id]="canvasID" class="fabric-canvas-container"></canvas>
+    </div>
+    <div *ngIf="isDrawModeSvgUpload()" class="fabric-canvas custom-tool-form">
+      <div class="container upload-warning">
+        Note: The uploaded svg may not be rendered exactly.
+      </div>
+      <div *ngIf="!isFileUploaded()">
+        <oppia-image-receiver (fileChanged)="onFileChanged($event)"
+                              [allowedImageFormats]="allowedImageFormats"
+                              [maxImageSizeInKB]="100"
+                              >
+        </oppia-image-receiver>
+      </div>
+      <div *ngIf="isFileUploaded()">
+        <img [src]="uploadedSvgDataUrl.safeUrl" class="uploaded-svg-image">
+        <div class="container">
+          <label>
+            <input type="radio" [(ngModel)]="loadType" value="group" checked>
+            <span>
+              Load as Single Image
+            </span>
+          </label>
+          <label>
+            <input type="radio" [(ngModel)]="loadType" value="nogroup">
+            <span>
+              Load as Individual Shapes
+            </span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div *ngIf="isDrawModePieChart()" class="fabric-canvas custom-tool-form">
+      <div class="container">
+        <div class="piechart-note">
+          Note: The pie chart can't be edited once it has been added to the diagram.
+        </div>
+        <div class="row">
+          <div class="col-md-5 col-sm-5 col-4">
+            Name:
+          </div>
+          <div class="col-md-5 col-sm-4 col-4">
+            Value:
+          </div>
+          <div class="col-md-2 col-sm-3 col-4">
+            Color:
+          </div>
+        </div>
+        <div *ngFor="let inputTag of pieChartDataInput; let idx = index">
+          <div class="row mb-3">
+            <div class="col-md-5 col-sm-5 col-4">
+              <input type="text" class="form-control" name="input_0_{{idx}}" [(ngModel)]="inputTag.name">
+            </div>
+            <div class="col-md-5 col-sm-4 col-4">
+              <input type="number" class="form-control" name="input_1_{{idx}}" [(ngModel)]="inputTag.data">
+            </div>
+            <div class="col-md-2 col-sm-3 col-4">
+              <input type="color" class="form-control" name="input_2_{{idx}}" [(ngModel)]="inputTag.color">
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <button *ngIf="pieChartDataInput.length < pieChartDataLimit"
+                  class="btn btn-outline-secondary btn-block" (click)="onAddItem()">
+                  Add item +
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="vertical-toolbar">
+      <div>
+        <button aria-label="Pencil" tabindex="0" class="icon-tool toolbar-button thin-button"
+                [ngClass]="{'disabled' : !isPencilEnabled()}"
+                (click)="togglePencilDrawing()"
+                placement="left"
+                ngbTooltip="Pencil"
+                [disabled]="!isPencilEnabled()">
+          <i class="fas fa-pencil-alt"></i>
+        </button>
+        <button aria-label="Line" tabindex="0" class="icon-tool toolbar-button thin-button e2e-test-create-line"
+                [ngClass]="{'disabled' : !areAllToolsEnabled()}"
+                (click)="createLine()"
+                placement="right"
+                ngbTooltip="Line"
+                [disabled]="!areAllToolsEnabled()">
+          <i class="fas fa-slash oppia-slash-icon"></i>
+        </button>
+        <button aria-label="Rectangle" tabindex="0" class="icon-tool toolbar-button thin-button e2e-test-create-rectangle"
+                [ngClass]="{'disabled' : !areAllToolsEnabled()}"
+                (click)="createRect()"
+                placement="left"
+                ngbTooltip="Rectangle"
+                [disabled]="!areAllToolsEnabled()">
+          <i class="far fa-square"></i>
+        </button>
+        <button aria-label="Circle" tabindex="0" class="icon-tool toolbar-button thin-button e2e-test-create-circle"
+                [ngClass]="{'disabled' : !areAllToolsEnabled()}"
+                (click)="createCircle()"
+                placement="right"
+                ngbTooltip="Circle"
+                [disabled]="!areAllToolsEnabled()">
+          <i class="far fa-circle"></i>
+        </button>
+        <button aria-label="Text" tabindex="0" class="icon-tool toolbar-button thin-button e2e-test-create-text"
+                [ngClass]="{'disabled' : !areAllToolsEnabled()}"
+                (click)="createText()"
+                placement="left"
+                ngbTooltip="Text"
+                [disabled]="!areAllToolsEnabled()">
+          <i class="fas fa-font"></i>
+        </button>
+        <button tabindex="0" aria-label="Closed Polygon" class="icon-tool toolbar-button thin-button oppia-closed-polygon-icon"
+        [ngClass]="{'disabled' : !isClosedPolygonEnabled()}"
+                (click)="createClosedPolygon()"
+                placement="right"
+                ngbTooltip="Closed Polygon"
+                [disabled]="!isClosedPolygonEnabled()">
+        </button>
+        <button aria-label="Open polygon" tabindex="0" class="icon-tool toolbar-button thin-button oppia-open-polygon-icon"
+        [ngClass]="{'disabled' : !isOpenPolygonEnabled()}"
+                (click)="createOpenPolygon()"
+                placement="left"
+                ngbTooltip="Open Polygon"
+                [disabled]="!isOpenPolygonEnabled()">
+        </button>
+        <button aria-label="Quadratic Bezier curve" tabindex="0" class="icon-tool toolbar-button thin-button e2e-test-create-bezier"
+                [ngClass]="{'disabled' : !(areAllToolsEnabled() || isDrawModeBezier())}"
+                (click)="createQuadraticBezier()"
+                placement="right"
+                ngbTooltip="Quadratic Bezier curve"
+                [disabled]="!(areAllToolsEnabled() || isDrawModeBezier())">
+          <i class="fas fa-bezier-curve bezier-curve"></i>
+        </button>
+        <button aria-label="pie chart" tabindex="0" class="icon-tool toolbar-button thin-button e2e-test-create-piechart"
+                [ngClass]="{'disabled' : !isPieChartEnabled()}"
+                (click)="createPieChart()"
+                placement="left"
+                ngbTooltip="Pie Chart"
+                [disabled]="!isPieChartEnabled()">
+          <i class="fas fa-chart-pie pie-chart"></i>
+        </button>
+        <button aria-label="upload SVG" tabindex="0" class="icon-tool toolbar-button thin-button e2e-test-create-svgupload"
+                [ngClass]="{'disabled' : !isSvgUploadEnabled()}"
+                (click)="uploadSvgFile()"
+                placement="right"
+                ngbTooltip="Upload SVG"
+                [disabled]="!isSvgUploadEnabled()">
+          <i class="far fa-file-image file-upload"></i>
+        </button>
+        <div class="vert-bottom-toolbar">
+          <div>
+            <div aria-label="Stroke" tabindex="0" class="color-well">
+              <div>Stroke</div>
+              <div id="stroke-color" class="colorPicker" placement="right" ngbTooltip="Stroke Color">
+                <div id="top-stroke-alpha" class="alphaSquare top"></div>
+                <div id="bottom-stroke-alpha" class="alphaSquare bottom"></div>
+              </div>
+            </div>
+            <div aria-label="fill" tabindex="0" class="color-well">
+              <div>Fill</div>
+              <div id="fill-color" class="colorPicker" placement="right" ngbTooltip="Fill Color">
+                <div id="top-fill-alpha" class="alphaSquare top"></div>
+                <div id="bottom-fill-alpha" class="alphaSquare bottom"></div>
+              </div>
+            </div>
+            <div aria-label="bg" tabindex="0" class="color-well">
+              <div>bg</div>
+              <div id="bg-color" class="colorPicker" placement="right" ngbTooltip="Background Color">
+                <div id="top-bg-alpha" class="alphaSquare top"></div>
+                <div id="bottom-bg-alpha" class="alphaSquare bottom"></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <button aria-label="Bring Forward" tabindex="0" class="icon-tool toolbar-button thin-button oppia-bring-forward-icon"
+                    [ngClass]="{'disabled' : !objectIsSelected}"
+                    (click)="bringObjectForward()"
+                    placement="left"
+                    ngbTooltip="Bring Forward"
+                    [disabled]="!objectIsSelected">
+            </button>
+            <button aria-label="Send Backward" tabindex="0" class="icon-tool toolbar-button thin-button oppia-send-backward-icon"
+                    [ngClass]="{'disabled' : !objectIsSelected}"
+                    (click)="sendObjectBackward()"
+                    placement="right"
+                    ngbTooltip="Send Backward"
+                    [disabled]="!objectIsSelected">
+            </button>
+            <button aria-label="Undo" tabindex="0" class="icon-tool toolbar-button thin-button"
+                    [ngClass]="{'disabled' : !isUndoEnabled()}"
+                    (click)="onUndo()"
+                    [disabled]="!isUndoEnabled()">
+              <i class="fas fa-undo"></i>
+            </button>
+            <button aria-label="Redo" tabindex="0" class="icon-tool toolbar-button thin-button"
+                    [ngClass]="{'disabled' : !isRedoEnabled()}"
+                    (click)="onRedo()"
+                    [disabled]="!isRedoEnabled()">
+              <i class="fas fa-redo"></i>
+            </button>
+          </div>
+          <button aria-label="Remove" tabindex="0" class="toolbar-button fat-button"
+                  (click)="removeShape()"
+                  [disabled]="!objectIsSelected">
+            Remove
+          </button>
+          <button aria-label="Clear" tabindex="0" class="toolbar-button fat-button"
+                  (click)="onClear()"
+                  [disabled]="!isClearEnabled()">
+            Clear
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="horizontal-toolbar top-toolbar">
+      <div class="info-tag" *ngIf="isDrawModeSvgUpload()">
+        Click the SVG upload button to load the SVG.
+      </div>
+      <div class="info-tag" *ngIf="isDrawModePieChart()">
+        Click the PieChart button once the data is entered.
+      </div>
+      <div class="info-tag" *ngIf="isDrawModePencil()">
+        Click the pencil button to exit free drawing mode.
+      </div>
+      <div class="info-tag" *ngIf="isDrawModePolygon() && isTouchDevice">
+        Click the polygon button to complete the diagram.
+      </div>
+      <div class="info-tag" *ngIf="isDrawModePolygon() && !isTouchDevice">
+        Double click to complete the polygon.
+      </div>
+      <div class="info-tag" *ngIf="isDrawModeBezier()">
+        Click the bezier curve button to complete the diagram.
+      </div>
+      <div class="input-tag" *ngIf="displayFontStyles">
+        <input type="checkbox" [(ngModel)]="fabricjsOptions.italic" (ngModelChange)="onItalicToggle()">
+        <span class="oppia-font-styles-text">Italic</span>
+      </div>
+      <div class="input-tag" *ngIf="displayFontStyles">
+        <input type="checkbox" [(ngModel)]="fabricjsOptions.bold" (ngModelChange)="onBoldToggle()">
+        <span class="oppia-font-styles-text">Bold</span>
+      </div>
+      <div class="input-tag" *ngIf="displayFontStyles">
+        <select [(ngModel)]="fabricjsOptions.fontFamily"
+                (ngModelChange)="onFontChange()">
+          <option *ngFor="let font of fontFamily">
+            {{ font }}
+          </option>
+        </select>
+      </div>
+    </div>
+    <div class="horizontal-toolbar bottom-toolbar" *ngIf="!isDrawModePieChart() && !isDrawModeSvgUpload()">
+      <div class="input-tag" *ngIf="isSizeVisible()">
+        <select [(ngModel)]="fabricjsOptions.size"
+                (ngModelChange)="onSizeChange()">
+          <option *ngFor="let size of sizes">
+            {{size}}
+          </option>
+        </select>
+      </div>
+      <div class="input-tag" *ngIf="objectIsSelected">
+        Layer number:{{ layerNum }}
+        <i class="fas fa-question-circle layer-info" placement="bottom"
+           ngbTooltip="This denotes the layer in which the currently selected shape is present. Layer 1 is the bottom layer.">
+        </i>
+      </div>
+    </div>
+  </div>
+  <div *ngIf="isDiagramSaved()">
+    <div class="diagram-editor-saved-image-container e2e-test-saved-diagram-container">
+      <i class="fas fa-pen diagram-editor-edit edit-icon" (click)="continueDiagramEditing()"
+         title="Continue editing the diagram">
+        <span class="edit-text">SVG</span>
+      </i>
+      <img [src]="data.savedSvgUrl" [ngStyle]="svgContainerStyle">
+    </div>
+  </div>
+  <div *ngIf="isDiagramCreated()" class="diagram-editor-save-box mt-4 d-flex justify-content-end">
+    <button type="button"
+            class="btn btn-secondary me-3"
+            (click)="discardSvgFile()">
+      Discard
+    </button>
+    <button class="btn btn-success e2e-test-save-diagram"
+            (click)="saveSvgFile()"
+            [disabled]="loadingIndicatorIsShown">
+      <span *ngIf="!loadingIndicatorIsShown">Use This Image</span>
+      <span *ngIf="loadingIndicatorIsShown">
+        <mat-progress-spinner [diameter]="25"
+                              mode="indeterminate"
+                              class="oppia-diagram-spinning-button">
+        </mat-progress-spinner>
+      </span>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,24 @@
+<div class="image-receiver-drop-area"
+     [ngClass]="{'image-receiver-is-active': backgroundWhileUploading, 'image-receiver-is-narrow': blogDashboardPageService.imageUploaderIsNarrow}"
+     #dropArea>
+  <div class="image-receiver-text e2e-test-screenshot-dropzone-text">{{ 'I18N_DIRECTIVES_DRAG_IMAGE_HERE' | translate }}</div>
+  <span *ngIf="errorMessage"
+        class="image-receiver-error-message e2e-test-upload-error">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ errorMessage }}
+  </span>
+  <span class="image-receiver-license-warning" tabindex="0">
+    Before uploading, please ensure that your image:<br>
+    <ul class="image-upload-instructions">
+      <li>{{ getAllowedImageFormatsString() }}</li>
+      <li>Has a size smaller than {{ maxImageSizeInKB }} KB</li>
+      <li>Has no watermarks and is compatible with the <a tabindex="0" class="license-term-link" href="/license" target="_blank" rel="noopener">license terms</a> of the site</li>
+    </ul>
+  </span>
+  <label for="image-file-input" class="image-receiver-upload-label-button e2e-test-image-upload-label">{{ 'I18N_DIRECTIVES_UPLOAD_A_FILE' | translate }}</label>
+  <input type="file" id="image-file-input" (click)="this.imageInputRef.nativeElement.value = null"
+         (change)="handleFile()"
+         class="image-receiver-file-input e2e-test-photo-upload-input"
+         accept=".jpg,.jpeg,.png,.svg"
+         [ngClass]="fileInputClassName" #imageInput>
+</div>

@@ -1,0 +1,32 @@
+<div class="e2e-test-preview-tab-container">
+  <div *ngIf="isExplorationPopulated">
+    <div *ngIf="previewWarning">
+      <div class="oppia-preview-state-warning">{{ previewWarning }}</div>
+    </div>
+    <oppia-loading-message [message]="'Loading'" *ngIf="!voiceoversAreLoaded"></oppia-loading-message>
+    <oppia-conversation-skin *ngIf="voiceoversAreLoaded && !isNewLessonPlayerEnabled()"></oppia-conversation-skin>
+    <page-footer *ngIf="!isNewLessonPlayerEnabled()">
+      <oppia-exploration-footer></oppia-exploration-footer>
+    </page-footer>
+    <oppia-new-conversation-skin class="preview-conversation-skin" *ngIf="voiceoversAreLoaded && isNewLessonPlayerEnabled()"></oppia-new-conversation-skin>
+  </div>
+
+  <div class="oppia-preview-bottom-right-container" [ngClass]="{'restart-btn': isNewLessonPlayerEnabled()}">
+    <div class="oppia-parameter-summary" *ngIf="showParameterSummary()">
+      <strong>Parameters:</strong>
+      <table>
+        <tr *ngFor="let item of allParams | keyvalue">
+          <td class="oppia-param-column">{{ item.key }}:</td>
+          <td class="oppia-param-column">
+            {{ item.value != "" ? item.value : "[Not set]" }}
+          </td>
+        </tr>
+      </table>
+    </div>
+    <button class="btn-lg e2e-test-preview-restart-button" (click)="resetPreview()">
+      <i class="fas fa-redo oppia-reload-icon"></i>
+      <span class="oppia-restart-text">Restart From Beginning</span>
+    </button>
+  </div>
+
+</div>

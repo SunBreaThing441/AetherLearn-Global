@@ -1,0 +1,312 @@
+.library-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.library-hero {
+  background: linear-gradient(135deg, #004d80 0%, #0077d4 100%);
+  color: white;
+  border-radius: 16px;
+  padding: 3rem 2.5rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 119, 212, 0.15);
+}
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  margin-bottom: 1rem;
+}
+
+.library-hero h2 {
+  font-size: 2.25rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem 0;
+}
+
+.library-hero p {
+  font-size: 1.1rem;
+  opacity: 0.95;
+  margin: 0 auto 2rem auto;
+  max-width: 650px;
+}
+
+.search-bar-wrap {
+  position: relative;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.1rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 1rem 1rem 1rem 3.25rem;
+  border-radius: 30px;
+  border: none;
+  font-size: 1rem;
+  outline: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+}
+
+.category-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.cat-pill {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  padding: 0.45rem 1rem;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cat-pill:hover {
+  background: #f1f5f9;
+}
+
+.cat-pill.active {
+  background: #0077d4;
+  color: white;
+  border-color: #0077d4;
+}
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.lib-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s;
+}
+
+.lib-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: #0077d4;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.cat-tag {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.lang-tag {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+}
+
+.card-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.card-desc {
+  margin: 0 0 1.25rem 0;
+  font-size: 0.92rem;
+  color: #64748b;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.card-tags {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.tag {
+  font-size: 0.75rem;
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.card-footer {
+  margin-top: auto;
+}
+
+.play-btn {
+  width: 100%;
+  background: #0077d4;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.play-btn:hover {
+  background: #005fa3;
+}
+
+.empty-library {
+  background: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 3rem;
+  text-align: center;
+  color: #64748b;
+}
+
+/* Curriculum Pathways Section */
+.curriculum-tracks-section {
+  margin-bottom: 2.5rem;
+}
+
+.section-badge {
+  display: inline-block;
+  background: rgba(0, 255, 198, 0.12);
+  border: 1px solid var(--aether-vibrant-mint, #00FFC6);
+  color: var(--aether-vibrant-mint, #00FFC6);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+  margin-bottom: 0.5rem;
+}
+
+.section-title {
+  font-family: var(--font-display, sans-serif);
+  font-size: 1.4rem;
+  color: #ffffff;
+  margin: 0 0 1.25rem 0;
+}
+
+.curriculum-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.curriculum-card {
+  background: rgba(5, 46, 62, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 255, 198, 0.25);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.curriculum-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--aether-vibrant-mint, #00FFC6);
+}
+
+.track-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.track-icon {
+  font-size: 1.5rem;
+}
+
+.track-chapters {
+  font-size: 0.8rem;
+  color: var(--aether-vibrant-mint, #00FFC6);
+  font-weight: 700;
+  background: rgba(0, 255, 198, 0.1);
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+}
+
+.track-title {
+  font-size: 1.15rem;
+  color: #ffffff;
+  margin: 0 0 0.5rem 0;
+}
+
+.track-desc {
+  font-size: 0.88rem;
+  color: #94b8c7;
+  margin: 0 0 1.25rem 0;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.track-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 0.85rem;
+}
+
+.track-skills {
+  font-size: 0.8rem;
+  color: #94b8c7;
+}
+
+.track-start-btn {
+  background: rgba(0, 255, 198, 0.15);
+  border: 1px solid var(--aether-vibrant-mint, #00FFC6);
+  color: var(--aether-vibrant-mint, #00FFC6);
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.track-start-btn:hover {
+  background: var(--aether-vibrant-mint, #00FFC6);
+  color: #052E3E;
+}
+

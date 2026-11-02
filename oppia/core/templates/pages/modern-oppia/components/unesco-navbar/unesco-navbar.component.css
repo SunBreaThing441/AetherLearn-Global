@@ -1,0 +1,195 @@
+.unesco-header {
+  background: linear-gradient(135deg, #004d80 0%, #0077d4 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.unesco-top-bar {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.unesco-brand-container {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.unesco-emblem {
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+}
+
+.unesco-emblem svg {
+  width: 26px;
+  height: 26px;
+  color: #ffffff;
+}
+
+.unesco-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.unesco-super-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #b3d7ff;
+}
+
+.unesco-title {
+  font-size: 1.15rem;
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.unesco-title span {
+  font-weight: 400;
+  color: #90caf9;
+}
+
+.unesco-sdg-badge {
+  display: flex;
+  align-items: center;
+  background: #c5192d; /* Official SDG 4 Red / Crimson */
+  color: white;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  gap: 0.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.sdg-num {
+  font-weight: 900;
+  border-right: 1px solid rgba(255, 255, 255, 0.4);
+  padding-right: 0.4rem;
+}
+
+.sdg-text {
+  font-weight: 600;
+}
+
+.unesco-nav-menu {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-btn {
+  background: transparent;
+  color: #e3f2fd;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.nav-btn.active {
+  background: #ffffff;
+  color: #0077d4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.unesco-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.a11y-toggle-btn {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.2s ease;
+}
+
+.a11y-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 0.35rem 0.8rem 0.35rem 0.4rem;
+  border-radius: 20px;
+}
+
+.avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #00a88f;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.avatar.logged-in {
+  background: #f59e0b;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.username {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.role {
+  font-size: 0.65rem;
+  color: #bbdefb;
+}
+
+@media (max-width: 900px) {
+  .unesco-top-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .unesco-sdg-badge {
+    display: none;
+  }
+}

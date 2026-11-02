@@ -1,0 +1,8 @@
+<div class="oppia-uid-copy">
+  <span class="oppia-unique-progress-id e2e-test-progress-id">{{ urlToCopy }}</span>
+  <span class="oppia-uid-btn-container" [ngClass]="{ 'oppia-copy-tooltip-margin' : showTooltip }">
+    <span class="oppia-uid-btn-message-box" *ngIf="showTooltip">{{ 'I18N_SAVE_PROGRESS_COPY_TOOLTIP' | translate }}</span>
+    <div class="oppia-uid-btn-message-arrow" *ngIf="showTooltip"></div>
+    <button type="button" class="btn btn-secondary oppia-uid-copy-btn" (click)="copyUrlButton()">{{ 'I18N_SAVE_PROGRESS_BUTTON_TEXT' | translate }}</button>
+  </span>
+</div>

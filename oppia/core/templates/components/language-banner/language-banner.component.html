@@ -1,0 +1,17 @@
+<div class="language-banner" *ngIf="bannerIsVisible">
+  <div class="banner-content-outer">
+    <div class="banner-content-inner">
+      <div class="banner-text">
+        <div class="icon">
+          <img [src]="getStaticImageUrl('/learner_dashboard/info.svg')" alt="info">
+        </div>
+        <div class="banner-info">
+          {{'I18N_LANGUAGE_BANNER_LANG_INFO' | translate}}
+        </div>
+      </div>
+      <button class="banner-button" (click)="onButtonClick()">
+        <span class="button-text"> {{'I18N_LANGUAGE_BANNER_BUTTON_TEXT' | translate}} </span>
+      </button>
+    </div>
+  </div>
+</div>

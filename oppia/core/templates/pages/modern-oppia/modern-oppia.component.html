@@ -1,0 +1,51 @@
+<div class="aetherlearn-app-wrapper">
+  <!-- UNESCO Global Navbar -->
+  <app-unesco-navbar 
+    [activeTab]="activeTab" 
+    (tabChange)="onTabChange($event)">
+  </app-unesco-navbar>
+
+  <!-- Main View Router / Tabs -->
+  <main class="aether-main-content">
+    <!-- 1. Community Exploration Library -->
+    <app-community-library 
+      *ngIf="activeTab === 'library'" 
+      (selectExploration)="onPlayExploration($event)">
+    </app-community-library>
+
+    <!-- 2. Interactive Exploration Player -->
+    <app-exploration-player 
+      *ngIf="activeTab === 'player'" 
+      [explorationId]="activeExplorationId">
+    </app-exploration-player>
+
+    <!-- 3. Learner Dashboard & Progress -->
+    <app-learner-dashboard 
+      *ngIf="activeTab === 'learner'" 
+      (playExploration)="onPlayExploration($event)">
+    </app-learner-dashboard>
+
+    <!-- 4. Creator Studio & State Graph Editor -->
+    <app-creator-studio 
+      *ngIf="activeTab === 'creator'">
+    </app-creator-studio>
+
+    <!-- 5. Contributor Hub & Crowdsourced Localization -->
+    <app-contributor-dashboard 
+      *ngIf="activeTab === 'contributor'">
+    </app-contributor-dashboard>
+  </main>
+
+  <!-- Accessible UNESCO Footer -->
+  <footer class="unesco-footer" role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <strong>AetherLearn Global | UNESCO Planetary Knowledge Nexus</strong>
+        <span>Dedicated to UNESCO SDG 4: Inclusive and Equitable Quality Education for All.</span>
+      </div>
+      <div class="footer-right">
+        <span>Powered by Python 3 Webapp2 WSGI & Angular 11 with RxJS</span>
+      </div>
+    </div>
+  </footer>
+</div>

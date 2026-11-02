@@ -1,0 +1,83 @@
+<div>
+  <div class="skill-editor-preview e2e-test-skill-preview-container">
+    <div class="content-box">
+      <div class="question-filter-box">
+        <div><span class="headings">Selection</span></div>
+        <div class="question-box">
+          <div><span class="heading-secondary">Questions</span></div>
+          <div *ngIf="questionsFetched">
+            <div class="question-filters">
+              <input type="text"
+                     class="e2e-test-question-text-input"
+                     [(ngModel)]="questionTextFilter"
+                     (change)="applyFilters()">
+              <select [(ngModel)]="interactionFilter"
+                      class="form-select"
+                      (change)="applyFilters()">
+                <option *ngFor="let interaction of ALLOWED_QUESTION_INTERACTIONS" [value]="interaction">
+                  {{ interaction }}
+                </option>
+              </select>
+            </div>
+            <div *ngFor="let question of displayedQuestions; index as idx" class="question-list-item e2e-test-preview-question">
+              <div (click)="selectQuestionToPreview(idx)">
+                <div class="question-data">
+                  <oppia-rte-output-display class="question-text"
+                                            [rteString]="question.question_state_data.content.html">
+                  </oppia-rte-output-display>
+                  <span *ngIf="question.question_state_data.interaction.id==='TextInput'">
+                    {{"Text Input"}}
+                  </span>
+                  <span *ngIf="question.question_state_data.interaction.id==='ItemSelectionInput'">
+                    {{"Item Selection"}}
+                  </span>
+                  <span *ngIf="question.question_state_data.interaction.id==='MultipleChoiceInput'">
+                    {{"Multiple Choice"}}
+                  </span>
+                  <span *ngIf="question.question_state_data.interaction.id==='NumericInput'">
+                    {{"Numeric Input"}}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="skill-description-box">
+          <div class="skill-description">
+            <div class="content-text-box">
+              <span class="heading-secondary">
+                Content
+              </span>
+            </div>
+            <div *ngIf="htmlData">
+              <oppia-rte-output-display [rteString]="htmlData">
+              </oppia-rte-output-display>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="seperator-block">
+        <div class="seperator"></div>
+      </div>
+      <div class="skill-question-container">
+        <div><span class="headings">Preview</span></div>
+        <div class="preview-box" *ngIf="displayCardIsInitialized">
+          <oppia-tutor-card [displayedCard]="displayedCard"
+                            [avatarImageIsShown]="false">
+          </oppia-tutor-card>
+          <div *ngIf="isCurrentSupplementalCardNonEmpty() && !canWindowShowTwoCards()">
+            <oppia-supplemental-card [displayedCard]="displayedCard">
+            </oppia-supplemental-card>
+          </div>
+          <div *ngIf="isCurrentSupplementalCardNonEmpty() && canWindowShowTwoCards()"
+               class="conversation-skin-supplemental-card-container">
+            <div class="supplemental-card-parent-container">
+              <oppia-supplemental-card [displayedCard]="displayedCard">
+              </oppia-supplemental-card>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

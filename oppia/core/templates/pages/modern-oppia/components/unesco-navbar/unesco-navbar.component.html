@@ -1,0 +1,88 @@
+<header class="unesco-header" role="banner">
+  <div class="unesco-top-bar">
+    <div class="unesco-brand-container">
+      <div class="unesco-emblem" aria-label="UNESCO Learning Emblem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="unesco-titles">
+        <span class="unesco-super-title">UNESCO PLANETARY KNOWLEDGE NEXUS</span>
+        <h1 class="unesco-title">AETHERLEARN <span>GLOBAL</span></h1>
+      </div>
+    </div>
+
+    <div class="unesco-sdg-badge" title="UN Sustainable Development Goal 4: Quality Education">
+      <span class="sdg-num">SDG 4</span>
+      <span class="sdg-text">Quality Education for All</span>
+    </div>
+
+    <nav class="unesco-nav-menu" role="navigation" aria-label="Primary Navigation">
+      <button 
+        type="button"
+        class="nav-btn" 
+        [class.active]="activeTab === 'library'"
+        (click)="selectTab('library')"
+        aria-label="Community Exploration Library">
+        <span class="icon">📚</span> Library
+      </button>
+
+      <button 
+        type="button"
+        class="nav-btn" 
+        [class.active]="activeTab === 'player'"
+        (click)="selectTab('player')"
+        aria-label="Interactive Lesson Player">
+        <span class="icon">🚀</span> Lesson Player
+      </button>
+
+      <button 
+        type="button"
+        class="nav-btn" 
+        [class.active]="activeTab === 'learner'"
+        (click)="selectTab('learner')"
+        aria-label="Learner Progress Dashboard">
+        <span class="icon">🎓</span> My Learning
+      </button>
+
+      <button 
+        type="button"
+        class="nav-btn" 
+        [class.active]="activeTab === 'creator'"
+        (click)="selectTab('creator')"
+        aria-label="Creator Studio">
+        <span class="icon">✏️</span> Creator Studio
+      </button>
+
+      <button 
+        type="button"
+        class="nav-btn" 
+        [class.active]="activeTab === 'contributor'"
+        (click)="selectTab('contributor')"
+        aria-label="UNESCO Contributor Hub">
+        <span class="icon">🌍</span> Contributor Hub
+      </button>
+    </nav>
+
+    <div class="unesco-actions">
+      <button 
+        type="button" 
+        class="a11y-toggle-btn"
+        (click)="toggleHighContrast()"
+        [title]="isHighContrast ? 'Disable High Contrast' : 'Enable High Contrast (WCAG AAA)'"
+        aria-label="Toggle High Contrast Mode">
+        <span class="icon">👁️</span> {{ isHighContrast ? 'Normal' : 'High Contrast' }}
+      </button>
+
+      <div class="user-profile-badge" *ngIf="currentUser$ | async as user">
+        <div class="avatar" [class.logged-in]="user.isLoggedIn">
+          {{ user.username ? user.username.charAt(0).toUpperCase() : 'G' }}
+        </div>
+        <div class="user-details">
+          <span class="username">{{ user.isLoggedIn ? user.username : 'Guest Learner' }}</span>
+          <span class="role">{{ user.isLoggedIn ? (user.isSuperAdmin ? 'Admin' : 'Student') : 'Public Access' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>

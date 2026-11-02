@@ -1,0 +1,98 @@
+<!--
+  Off-screen preview of the learner view card in order to check if the height of the card has exceeded a specified limit.
+-->
+<div class="oppia-shadow-preview-card" aria-hidden="true">
+  <div class="oppia-learner-view-card-content e2e-test-learner-view-card-content">
+    <div class="oppia-learner-view-card-top-section">
+      <oppia-rte-output-display class="oppia-rte-viewer oppia-learner-view-card-top-content"
+                                [rteString]="stateContentService.displayed._html">
+      </oppia-rte-output-display>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="!contentEditorIsOpen" class="e2e-test-state-editor">
+  <div *ngIf="cardHeightLimitReached && cardHeightLimitWarningIsShown" class="oppia-card-height-limit-warning e2e-test-card-height-limit-warning">
+    <i class="fas fa-exclamation-triangle oppia-hide-card-height-warning-icon e2e-test-hide-card-height-warning-icon" ngbTooltip="Hide warning" (click)="hideCardHeightLimitWarning()"></i>
+    <span [innerHTML]="'I18N_CARD_HEIGHT_LIMIT_WARNING_MESSAGE' | translate"></span>
+  </div>
+  <div *ngIf="isContentEditable()"
+       class="e2e-test-edit-content oppia-editable-section e2e-test-edit-content-pencil-button"
+       (click)="openStateContentEditor()">
+    <button class="fas fa-pen oppia-editor-edit-icon oppia-editor-edit-icon-position e2e-test-edit-content-pencil-button" title="Edit Card Content"></button>
+    <div class="oppia-prevent-selection oppia-state-content-display oppia-transition-200 e2e-test-actual-state-content"
+         title="Card Content">
+      <span [hidden]="!stateContentService.savedMemento.isEmpty()" tabindex="0" class="oppia-placeholder">
+        {{ stateContentPlaceholder }}
+      </span>
+      <span>
+        <oppia-rte-output-display [rteString]="stateContentService.savedMemento.html"
+                                  tabindex="0"
+                                  class="oppia-rte-editor e2e-test-state-content-display">
+        </oppia-rte-output-display>
+      </span>
+    </div>
+    <!-- This is a dummy div created to mask the contents when the user hovers over the content. -->
+    <div class="oppia-editable-section-mask e2e-test-state-edit-content">
+    </div>
+  </div>
+  <div *ngIf="!isContentEditable()"
+       class="e2e-test-edit-content">
+    <div class="oppia-prevent-selection oppia-state-content-display oppia-transition-200"
+         tabindex="0"
+         title="Card Content">
+      <span [hidden]="!stateContentService.savedMemento.isEmpty()" class="oppia-placeholder">
+        {{ stateContentPlaceholder }}
+      </span>
+      <span>
+        <oppia-rte-output-display [rteString]="stateContentService.savedMemento.html"
+                                  class="oppia-rte-editor e2e-test-state-content-display">
+        </oppia-rte-output-display>
+      </span>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="contentEditorIsOpen" class="e2e-test-state-content-editor">
+  <!-- TODO(sll): Find a way to do this without resorting to private properties like _html -->
+  <p class="oppia-rte-keyboard-accessibility-text" tabindex="0">Alt+0 for keyboard accessibility</p>
+  <schema-based-editor [schema]="HTML_SCHEMA"
+                     [localValue]="stateContentService.displayed._html"
+                     (localValueChange)="updateContentHtml($event)">
+  </schema-based-editor>
+  <div *ngIf="isFormulaAsText(stateContentService.displayed._html)"
+       class="alert alert-warning e2e-test-formula-as-text-warning mt-2 d-flex justify-content-between"
+       [ngClass]="mathWarningIsMinimized ? 'align-items-center' : 'align-items-start'">
+    <div *ngIf="!mathWarningIsMinimized">
+      <i class="fas fa-exclamation-triangle mr-1"></i>
+      <span [innerHTML]="'I18N_WARNING_PLAIN_TEXT_MATH_EXPRESSION' | translate"></span>
+    </div>
+    <div *ngIf="mathWarningIsMinimized">
+      <i class="fas fa-exclamation-triangle mr-2" title="Plain-text math expressions detected."></i>
+      <span [innerHTML]="'I18N_WARNING_MATH_EXPRESSION_MINIMIZED' | translate"></span>
+    </div>
+    <i class="fas"
+       [ngClass]="mathWarningIsMinimized ? 'fa-angle-down' : 'fa-angle-up'"
+       (click)="toggleMathWarning()"
+       [title]="mathWarningIsMinimized ? 'Expand warning' : 'Minimize warning'">
+    </i>
+  </div>
+  <div *ngIf="cardHeightLimitReached && cardHeightLimitWarningIsShown" class="oppia-card-height-limit-warning e2e-test-card-height-limit-warning mt-2">
+    <i class="fas fa-exclamation-triangle oppia-hide-card-height-warning-icon e2e-test-hide-card-height-warning-icon" ngbTooltip="Hide warning" (click)="hideCardHeightLimitWarning()"></i>
+    <span [innerHTML]="'I18N_CARD_HEIGHT_LIMIT_WARNING_MESSAGE' | translate"></span>
+  </div>
+  <div class="mt-2">
+    <div *ngIf="isCardContentLengthLimitReached()" class="oppia-card-content-limit-error e2e-test-card-height-limit-warning mt-2">
+      <i class="fas fa-exclamation-triangle oppia-hide-card-content-error-icon e2e-test-hide-card-height-warning-icon" ngbTooltip="Hide warning" (click)="hideCardHeightLimitWarning()"></i>
+      <span [innerHTML]="'I18N_CARD_CONTENT_LIMIT_ERROR_MESSAGE' | translate"></span>
+    </div>
+    <button type="button"
+            [disabled]="isCardContentLengthLimitReached()"
+            class="btn btn-success oppia-save-state-item-button e2e-test-save-state-content float-end"
+            (click)="onSaveContentButtonClicked()">
+      {{ stateContentSaveButtonPlaceholder }}
+    </button>
+    <button type="button" class="btn btn-secondary float-end" (click)="cancelEdit()">Cancel</button>
+    <div class="oppia-clear"></div>
+  </div>
+</div>

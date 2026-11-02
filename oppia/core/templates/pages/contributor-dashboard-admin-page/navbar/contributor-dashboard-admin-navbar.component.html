@@ -1,0 +1,88 @@
+<div class="contributor-dashboard-admin-navbar">
+  <nav class="navbar navbar-default navbar-light oppia-navbar oppia-prevent-selection oppia-navbar-contributor-dashboard-admin" role="navigation">
+    <div class="navbar-container oppia-navbar-container">
+      <div class="navbar-header e2e-test-navbar-header float-start">
+        <a class="oppia-navbar-brand-name oppia-transition-200 float-start"
+           href="/community-library"
+           [routerLink]="'/' + PAGES_REGISTERED_WITH_FRONTEND.LIBRARY_INDEX.ROUTE">
+          <picture>
+            <source type="image/webp" [srcset]="logoWebpImageSrc">
+            <source type="image/png" [srcset]="logoPngImageSrc">
+            <img [src]="logoPngImageSrc"
+                 class="oppia-logo oppia-logo-wide"
+                 alt="Oppia Logo">
+          </picture>
+          Return to Oppia Library Page
+        </a>
+        <ul class="nav navbar-nav oppia-navbar-breadcrumb">
+          <li>
+            <span class="oppia-navbar-breadcrumb-separator"></span>Contributor Dashboard Admin
+          </li>
+        </ul>
+      </div>
+      <div class="navbar-header float-end">
+        <ul class="nav oppia-navbar-nav oppia-navbar-profile-contributor-dashboard-admin">
+          <li>
+            <ul class="nav oppia-navbar-tabs-contributor-dashboard-admin">
+              <li ngbDropdown class="nav-item dropdown float-end" [ngClass]="{'open' : profileDropdownIsActive}">
+                <a ngbDropdownToggle class="nav-link oppia-navbar-dropdown-toggle"
+                   (mouseenter)="activateProfileDropdown()"
+                   (mouseleave)="deactivateProfileDropdown()">
+                  <picture *ngIf="profilePicturePngDataUrl">
+                    <source type="image/webp" [srcset]="profilePictureWebpDataUrl">
+                    <source type="image/png" [srcset]="profilePicturePngDataUrl">
+                    <img [src]="profilePicturePngDataUrl"
+                         class="oppia-navbar-profile-picture rounded-circle"
+                         alt="User profile picture">
+                  </picture>
+                  <div *ngIf="!profilePicturePngDataUrl" class="dropdown-toggle">
+                    <i class="material-icons md-40 oppia-dropdown-toggle-icon">&#xE853;</i>
+                  </div>
+                </a>
+                <ul ngbDropdownMenu class="dropdown-menu dropdown-menu oppia-navbar-dropdown"
+                    role="menu"
+                    (mouseenter)="activateProfileDropdown()"
+                    (mouseleave)="deactivateProfileDropdown()">
+                  <li>
+                    <a [href]="profileUrl"
+                       class="dropdown-item oppia-dropdown-item-text">
+                      <strong>{{ username }}</strong>
+                    </a>
+                  </li>
+                  <hr class="oppia-top-right-menu-item-separator">
+                  <li>
+                    <a href="/creator-dashboard"
+                       class="dropdown-item oppia-dropdown-item-text">
+                      Creator Dashboard
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/notifications"
+                       class="dropdown-item oppia-dropdown-item-text">
+                      Notifications
+                    </a>
+                  </li>
+                  <li>
+                    <a href="/preferences"
+                       [routerLink]="'/' + PAGES_REGISTERED_WITH_FRONTEND.PREFERENCES.ROUTE"
+                       class="dropdown-item oppia-dropdown-item-text">
+                      Preferences
+                    </a>
+                  </li>
+                  <hr class="oppia-top-right-menu-item-separator">
+                  <li>
+                    <a [href]="logoutUrl"
+                       [routerLink]="logoutUrl"
+                       class="dropdown-item oppia-dropdown-item-text">
+                      Logout
+                    </a>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+</div>

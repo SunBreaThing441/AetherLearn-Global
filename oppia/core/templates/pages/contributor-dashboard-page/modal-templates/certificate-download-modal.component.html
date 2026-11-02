@@ -1,0 +1,49 @@
+<div class="oppia-certificate-download-text-header-container">
+  <div class="oppia-certificate-download-text-header">
+    <div class="oppia-certificate-download-details">
+      <div class="oppia-certificate-download-heading">
+        Select the time range
+      </div>
+      <button type="button" class="btn-close oppia-close-button-position" (click)="close()" attr.aria-label="Close">
+      </button>
+    </div>
+  </div>
+</div>
+<div class="modal-body">
+  <div *ngIf="!isDownloading && !isPrinting">
+    <div class="datepicker-container">
+      <div class="date-label">From:</div>
+      <input class="datepicker" type="date" [max]="maxSelectableDate" [(ngModel)]="fromDate" (change)="validateDate()">
+    </div>
+    <div class="datepicker-container">
+      <div class="date-label">To:</div>
+      <input class="datepicker" type="date" [max]="maxSelectableDate" [(ngModel)]="toDate" (change)="validateDate()">
+    </div>
+    <div class="datepicker-container" *ngIf="errorsFound">
+      <span class="date-range-error">{{errorMessage}}</span>
+    </div>
+  </div>
+  <div *ngIf="isDownloading || isPrinting" class="loader"></div>
+  <div *ngIf="isDownloading || isPrinting" class="certficate-generation-await">
+    Generating certificate for time range {{fromDate}} to {{toDate}}. Please wait.
+  </div>
+</div>
+
+<div class="oppia-certificate-download-modal-footer modal-footer">
+  <button class="btn btn-secondary" (click)="close()">
+    Cancel
+  </button>
+
+  <button class="btn btn-success oppia-print-button-margin" [disabled]="isDownloadDisabled"
+          (click)="printCertificate()">
+    <i [hidden]="!isPrinting" class="fa fa-spinner fa-spin"></i>
+    <span>Print</span>
+  </button>
+
+  <button class="btn btn-success" [disabled]="isDownloadDisabled" (click)="downloadCertificate()">
+    <i [hidden]="!isDownloading" class="fa fa-spinner"></i>
+    <span>
+      Download
+    </span>
+  </button>
+</div>

@@ -1,0 +1,28 @@
+.oppia-navbar-breadcrumb {
+  padding-top: 10px;
+}
+.oppia-learner-navbar-container {
+  display: flex;
+}
+.lesson-info-section {
+  display: contents;
+}
+.oppia-navbar-title-container {
+  display: flex;
+  flex-direction: column;
+}
+.oppia-exploration-h1 {
+  color: #fff;
+  display: inline;
+  font-size: 18px;
+  font-weight: normal;
+  margin-bottom: 1px;
+}
+.oppia-topic-title {
+  color: #fff;
+  display: flex;
+  font-size: 12px;
+  font-weight: 200;
+  margin-top: -3px;
+  padding-left: 26px;
+}

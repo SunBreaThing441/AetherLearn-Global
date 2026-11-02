@@ -1,0 +1,1215 @@
+// Copyright 2019 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Component for showing and reviewing contributions.
+ */
+
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  OnChanges,
+  SimpleChanges,
+  ViewChild,
+  HostListener,
+  Input,
+} from '@angular/core';
+import {HttpErrorResponse} from '@angular/common/http';
+import {NgbModalRef, NgbModal} from '@ng-bootstrap/ng-bootstrap';
+import {AppConstants} from 'app.constants';
+import cloneDeep from 'lodash/cloneDeep';
+import {Subscription, Observable} from 'rxjs';
+import {Rubric} from 'domain/skill/rubric.model';
+import {
+  FetchSkillResponse,
+  SkillBackendApiService,
+} from 'domain/skill/skill-backend-api.service';
+import {MisconceptionSkillMap} from 'domain/skill/misconception.model';
+import {Question, QuestionBackendDict} from 'domain/question/question.model';
+import {
+  ActiveContributionDict,
+  TranslationSuggestionReviewModalComponent,
+  PendingSuggestionDict,
+} from '../modal-templates/translation-suggestion-review-modal.component';
+import {ContributorDashboardConstants} from 'pages/contributor-dashboard-page/contributor-dashboard-page.constants';
+import {QuestionSuggestionReviewModalComponent} from '../modal-templates/question-suggestion-review-modal.component';
+import {TranslationLanguageService} from 'pages/exploration-editor-page/translation-tab/services/translation-language.service';
+import {TranslationTopicService} from 'pages/exploration-editor-page/translation-tab/services/translation-topic.service';
+import {FormatRtePreviewPipe} from 'filters/format-rte-preview.pipe';
+import {UserService} from 'services/user.service';
+import {AlertsService} from 'services/alerts.service';
+import {PageContextService} from 'services/page-context.service';
+import {ContributionAndReviewService} from '../services/contribution-and-review.service';
+import {ContributionOpportunitiesService} from '../services/contribution-opportunities.service';
+import {OpportunitiesListComponent} from '../opportunities-list/opportunities-list.component';
+import {PlatformFeatureService} from 'services/platform-feature.service';
+import {
+  CALCULATION_TYPE_WORD,
+  HtmlLengthService,
+} from 'services/html-length.service';
+import {HtmlEscaperService} from 'services/html-escaper.service';
+import {MatSnackBar, MatSnackBarRef} from '@angular/material/snack-bar';
+import {ExplorationOpportunitySummary} from 'domain/opportunity/exploration-opportunity-summary.model';
+import {UndoSnackbarComponent} from 'components/custom-snackbar/undo-snackbar.component';
+import {WindowRef} from 'services/contextual/window-ref.service';
+export interface Suggestion {
+  change_cmd: {
+    skill_id: string;
+    content_html: string | string[];
+    translation_html: string | string[];
+    question_dict: QuestionBackendDict;
+    skill_difficulty: string[];
+    cmd?: string;
+    content_id?: string;
+    data_format?: string;
+    language_code?: string;
+    state_name?: string;
+  };
+  status: string;
+  suggestion_type: string;
+  target_type?: string;
+  target_id: string;
+  suggestion_id: string;
+  author_name: string;
+  language_code?: string;
+  last_updated_msecs?: number;
+  entity_content_html: string | null;
+}
+
+export interface ContributionsSummary {
+  id: string;
+  heading: string;
+  subheading: string;
+  labelText: string;
+  labelColor: string;
+  actionButtonTitle: string;
+  translationWordCount?: number;
+  isPinned?: boolean;
+}
+
+export interface Opportunity {
+  id: string;
+  heading: string;
+  subheading: string;
+  labelText: string;
+  labelColor: string;
+  actionButtonTitle: string;
+  translationWordCount?: number;
+  isPinned?: boolean;
+  topicName?: string;
+  totalCount?: number;
+  translationsCount?: number;
+  inReviewCount?: number;
+  progressPercentage?: string;
+  entityType?: string;
+}
+
+export interface GetOpportunitiesResponse {
+  opportunitiesDicts: Opportunity[];
+  more: boolean;
+}
+
+export interface ContributionDetails {
+  skill_description?: string;
+  skill_rubrics?: Rubric[];
+  chapter_title?: string;
+  story_title?: string;
+  topic_name: string;
+  entity_description?: string;
+}
+
+export interface SuggestionDetails {
+  suggestion: Suggestion;
+  details: ContributionDetails;
+}
+
+export interface TabDetails {
+  tabType: string;
+  tabSubType: string;
+  text: string;
+  enabled: boolean;
+}
+
+export interface CustomMatSnackBarRef {
+  onAction: () => Observable<void>;
+}
+
+const COMMIT_TIMEOUT_DURATION = 30000;
+
+@Component({
+  selector: 'oppia-contributions-and-review',
+  templateUrl: './contributions-and-review.component.html',
+  styleUrls: ['./contributions-and-review.component.css'],
+})
+export class ContributionsAndReview implements OnInit, OnDestroy, OnChanges {
+  @Input() activeTopicName: string = '';
+  @Input() activeEntityType: string =
+    ContributorDashboardConstants.ENTITY_TYPE_SENTINEL_ALL;
+  @ViewChild('opportunitiesList')
+  opportunitiesListRef!: OpportunitiesListComponent;
+
+  get ENTITY_TYPE_SKILL(): string {
+    return AppConstants.ENTITY_TYPE.SKILL;
+  }
+
+  directiveSubscriptions = new Subscription();
+
+  SUGGESTION_TYPE_QUESTION: string = 'add_question';
+  SUGGESTION_TYPE_TRANSLATE: string = 'translate_content';
+  ACCOMPLISHMENTS_TYPE_STATS: string = 'stats';
+  ACCOMPLISHMENTS_TYPE_BADGE: string = 'badge';
+  TAB_TYPE_CONTRIBUTIONS: string = 'contributions';
+  TAB_TYPE_REVIEWS: string = 'reviews';
+  TAB_TYPE_ACCOMPLISHMENTS: string = 'accomplishments';
+  REVIEWABLE_QUESTIONS_SORT_KEYS: string[] = [];
+  activeExplorationId: string = '';
+  contributions: Record<string, SuggestionDetails> = {};
+  userDetailsLoading: boolean = true;
+  userIsLoggedIn: boolean = false;
+  activeTabType: string = '';
+  activeTabSubtype: string = '';
+  dropdownShown: boolean = false;
+  activeDropdownTabChoice: string = '';
+  reviewTabs: TabDetails[] = [];
+  accomplishmentsTabs: TabDetails[] = [];
+  contributionTabs: TabDetails[] = [];
+  languageCode: string = '';
+  userCreatedQuestionsSortKey: string = '';
+  reviewableQuestionsSortKey: string = '';
+  userCreatedTranslationsSortKey: string = '';
+  reviewableTranslationsSortKey: string = '';
+  topicReady: boolean = false;
+  commitTimeout?: NodeJS.Timeout;
+  queuedSuggestionSummary: {
+    target_type: string;
+    target_id: string;
+    suggestion_id: string;
+    action_status: string;
+    reviewer_message: string;
+    commit_message?: string;
+  } | null = null;
+  queuedSuggestion: PendingSuggestionDict | null = null;
+  currentSnackbarRef?: MatSnackBarRef<UndoSnackbarComponent>;
+  tabNameToOpportunityFetchFunction: {
+    [key: string]: {
+      [key: string]: Function;
+    };
+  } = {};
+  private isCommitting = false;
+
+  opportunities: ExplorationOpportunitySummary[] = [];
+
+  defaultContributionType: string = 'translationContribution';
+  SUGGESTION_LABELS = {
+    review: {
+      text: 'Awaiting review',
+      color: '#eeeeee',
+    },
+    accepted: {
+      text: 'Accepted',
+      color: '#8ed274',
+    },
+    rejected: {
+      text: 'Revisions Requested',
+      color: '#e76c8c',
+    },
+  };
+
+  constructor(
+    private alertsService: AlertsService,
+    private pageContextService: PageContextService,
+    private contributionAndReviewService: ContributionAndReviewService,
+    private contributionOpportunitiesService: ContributionOpportunitiesService,
+    private formatRtePreviewPipe: FormatRtePreviewPipe,
+    private ngbModal: NgbModal,
+    private skillBackendApiService: SkillBackendApiService,
+    private translationLanguageService: TranslationLanguageService,
+    private translationTopicService: TranslationTopicService,
+    private userService: UserService,
+    private featureService: PlatformFeatureService,
+    private htmlLengthService: HtmlLengthService,
+    private htmlEscaperService: HtmlEscaperService,
+    private snackBar: MatSnackBar,
+    private windowRef: WindowRef
+  ) {}
+
+  getQuestionContributionsSummary(
+    suggestionIdToSuggestions: Record<string, SuggestionDetails>
+  ): ContributionsSummary[] {
+    const questionContributionsSummaryList: ContributionsSummary[] = [];
+    Object.keys(suggestionIdToSuggestions).forEach((key: string) => {
+      const suggestion = suggestionIdToSuggestions[key].suggestion;
+      const details = suggestionIdToSuggestions[key].details;
+      let subheading = '';
+      if (details === null) {
+        subheading =
+          ContributorDashboardConstants.CORRESPONDING_DELETED_OPPORTUNITY_TEXT;
+      } else {
+        subheading = details.skill_description ?? '';
+      }
+
+      const suggestionStatus = suggestion.status as
+        | 'review'
+        | 'accepted'
+        | 'rejected';
+      const requiredData = {
+        id: suggestion.suggestion_id,
+        heading: this.formatRtePreviewPipe.transform(
+          suggestion.change_cmd.question_dict.question_state_data.content.html
+        ),
+        subheading: subheading,
+        labelText: this.SUGGESTION_LABELS[suggestionStatus].text,
+        labelColor: this.SUGGESTION_LABELS[suggestionStatus].color,
+        actionButtonTitle:
+          this.activeTabType === this.TAB_TYPE_REVIEWS ? 'Review' : 'View',
+      };
+
+      questionContributionsSummaryList.push(requiredData);
+    });
+
+    return questionContributionsSummaryList;
+  }
+
+  getTranslationContributionsSummary(
+    suggestionIdToSuggestions: Record<string, SuggestionDetails>
+  ): ContributionsSummary[] {
+    const translationContributionsSummaryList: ContributionsSummary[] = [];
+
+    Object.keys(suggestionIdToSuggestions).forEach((key: string) => {
+      const suggestion = suggestionIdToSuggestions[key].suggestion;
+      const details = suggestionIdToSuggestions[key].details;
+      let subheading = '';
+      if (details === null) {
+        subheading =
+          ContributorDashboardConstants.CORRESPONDING_DELETED_OPPORTUNITY_TEXT;
+      } else {
+        if (suggestion.target_type === AppConstants.ENTITY_TYPE.SKILL) {
+          subheading = details.skill_description || '';
+        } else if (
+          this.featureService.status.EnableTranslationOppsWithNewOppModels
+            .isEnabled
+        ) {
+          subheading = details.topic_name + ' / ' + details.entity_description;
+        } else {
+          subheading =
+            details.topic_name +
+            ' / ' +
+            details.story_title +
+            ' / ' +
+            details.chapter_title;
+        }
+      }
+
+      const suggestionStatus = suggestion.status as
+        | 'review'
+        | 'accepted'
+        | 'rejected';
+      const requiredData = {
+        id: suggestion.suggestion_id,
+        heading: this.getTranslationSuggestionHeading(suggestion),
+        subheading: subheading,
+        labelText:
+          // Missing exploration content means the translation suggestion is
+          // now obsolete. See issue #16022.
+          suggestion.entity_content_html === null
+            ? 'Obsolete'
+            : this.SUGGESTION_LABELS[suggestionStatus].text,
+        labelColor: this.SUGGESTION_LABELS[suggestionStatus].color,
+        actionButtonTitle:
+          this.activeTabType === this.TAB_TYPE_REVIEWS ? 'Review' : 'View',
+        translationWordCount:
+          this.isReviewTranslationsTab() && this.activeExplorationId
+            ? this.getTranslationContentLength(
+                suggestion.change_cmd.content_html
+              )
+            : undefined,
+      };
+
+      translationContributionsSummaryList.push(requiredData);
+    });
+
+    translationContributionsSummaryList.sort((a, b) => {
+      const getPriority = (statusLabel: string): number => {
+        if (statusLabel === this.SUGGESTION_LABELS.rejected.text) {
+          return 0;
+        } else if (statusLabel === this.SUGGESTION_LABELS.review.text) {
+          return 1;
+        } else if (statusLabel === this.SUGGESTION_LABELS.accepted.text) {
+          return 2;
+        }
+        return 3;
+      };
+
+      const priorityA = getPriority(a.labelText);
+      const priorityB = getPriority(b.labelText);
+
+      return priorityA - priorityB;
+    });
+
+    return translationContributionsSummaryList;
+  }
+
+  getTranslationContentLength(contentHtml: string | string[]): number {
+    if (typeof contentHtml === 'string') {
+      return this.htmlLengthService.computeHtmlLength(
+        contentHtml,
+        CALCULATION_TYPE_WORD
+      );
+    } else if (Array.isArray(contentHtml)) {
+      let totalLength = 0;
+      for (const str of contentHtml) {
+        totalLength += this.htmlLengthService.computeHtmlLength(
+          str,
+          CALCULATION_TYPE_WORD
+        );
+      }
+      return totalLength;
+    } else {
+      throw new Error(
+        'Invalid input: contentHtml must be a string or an array of strings.'
+      );
+    }
+  }
+
+  getTranslationSuggestionHeading(suggestion: Suggestion): string {
+    const changeTranslation = suggestion.change_cmd.translation_html;
+
+    return this.htmlEscaperService.escapedStrToUnescapedStr(
+      this.formatRtePreviewPipe.transform(
+        Array.isArray(changeTranslation) ? ', ' : changeTranslation
+      )
+    );
+  }
+
+  resolveSuggestionSuccess(suggestionId: string): void {
+    this.alertsService.addSuccessMessage('Submitted suggestion review.');
+    this.contributionOpportunitiesService.removeOpportunitiesEventEmitter.emit([
+      suggestionId,
+    ]);
+    // Reload opportunities to refresh progress bars after accepting suggestion.
+    this.contributionOpportunitiesService.reloadOpportunitiesEventEmitter.emit();
+  }
+
+  _showQuestionSuggestionModal(
+    suggestion: Suggestion,
+    suggestionIdToContribution: Record<string, ActiveContributionDict>,
+    reviewable: boolean,
+    question: Question,
+    misconceptionsBySkill: MisconceptionSkillMap
+  ): void {
+    const suggestionId = suggestion.suggestion_id;
+    const updatedQuestion =
+      question ||
+      Question.createFromBackendDict(suggestion.change_cmd.question_dict);
+
+    const modalRef = this.ngbModal.open(
+      QuestionSuggestionReviewModalComponent,
+      {
+        backdrop: 'static',
+        size: 'lg',
+      }
+    );
+
+    modalRef.componentInstance.reviewable = reviewable;
+    modalRef.componentInstance.question = updatedQuestion;
+    modalRef.componentInstance.suggestionId = suggestionId;
+    modalRef.componentInstance.suggestionIdToContribution =
+      suggestionIdToContribution;
+    modalRef.componentInstance.misconceptionsBySkill = misconceptionsBySkill;
+
+    modalRef.componentInstance.editSuggestionEmitter.subscribe(
+      (value: {
+        suggestionId: string;
+        suggestion: Suggestion;
+        reviewable: boolean;
+      }) => {
+        this.openQuestionSuggestionModal(
+          value.suggestionId,
+          value.suggestion,
+          value.reviewable
+        );
+      }
+    );
+
+    modalRef.result.then(
+      (result: {
+        action: string;
+        reviewMessage: string;
+        skillDifficulty: number;
+        targetId: string;
+        suggestionId: string;
+      }) => {
+        this.contributionAndReviewService.reviewQuestionSuggestion(
+          result.targetId,
+          result.suggestionId,
+          result.action,
+          result.reviewMessage,
+          result.skillDifficulty,
+          this.resolveSuggestionSuccess.bind(this),
+          () => {
+            this.alertsService.addInfoMessage('Failed to submit suggestion.');
+          }
+        );
+      },
+      () => {}
+    );
+  }
+
+  _showTranslationSuggestionModal(
+    suggestionIdToContribution: Record<string, ActiveContributionDict>,
+    initialSuggestionId: string,
+    reviewable: boolean
+  ): void {
+    const contribution = this.contributions[
+      initialSuggestionId
+    ] as SuggestionDetails;
+    const details = contribution.details as ContributionDetails;
+    let subheading = '';
+    if (
+      contribution.suggestion.target_type === AppConstants.ENTITY_TYPE.SKILL
+    ) {
+      // A skill's opportunity carries its description rather than the topic
+      // and chapter that an exploration's opportunity does.
+      subheading = details.skill_description || '';
+    } else if (
+      this.featureService.status.EnableTranslationOppsWithNewOppModels.isEnabled
+    ) {
+      subheading = details.topic_name + ' / ' + details.entity_description;
+    } else {
+      subheading =
+        details.topic_name +
+        ' / ' +
+        details.story_title +
+        ' / ' +
+        details.chapter_title;
+    }
+    const modalRef: NgbModalRef = this.ngbModal.open(
+      TranslationSuggestionReviewModalComponent,
+      {
+        backdrop: 'static',
+        windowClass: 'oppia-translation-suggestion-review-modal',
+        size: 'lg',
+      }
+    );
+
+    modalRef.componentInstance.suggestionIdToContribution = cloneDeep(
+      suggestionIdToContribution
+    );
+    modalRef.componentInstance.initialSuggestionId = initialSuggestionId;
+    modalRef.componentInstance.reviewable = reviewable;
+    modalRef.componentInstance.subheading = subheading;
+    modalRef.componentInstance.queuedSuggestionSummaryEmit.subscribe(
+      (queuedSuggestionSummary: {
+        target_type: string;
+        target_id: string;
+        suggestion_id: string;
+        action_status: string;
+        reviewer_message: string;
+        commit_message?: string;
+      }) => {
+        if (this.queuedSuggestionSummary) {
+          // Commit any previously queued suggestion.
+          this.commitQueuedSuggestion();
+        }
+        this.queuedSuggestionSummary = queuedSuggestionSummary;
+        this.startCommitTimeout();
+        this.showUndoSnackbar();
+      }
+    );
+
+    modalRef.componentInstance.queuedSuggestionEmit.subscribe(
+      (queuedSuggestion: PendingSuggestionDict) => {
+        this.queuedSuggestion = queuedSuggestion;
+      }
+    );
+    modalRef.result.then(
+      (resolvedSuggestionIds: string[]) => {
+        const filteredResolvedSuggestionIds = resolvedSuggestionIds.filter(
+          suggestionId => this.queuedSuggestion?.suggestion_id !== suggestionId
+        );
+        // Emit only the filtered resolved suggestions.
+        if (filteredResolvedSuggestionIds.length > 0) {
+          this.contributionOpportunitiesService.removeOpportunitiesEventEmitter.emit(
+            filteredResolvedSuggestionIds
+          );
+        }
+        resolvedSuggestionIds.forEach((suggestionId: string) => {
+          if (
+            !this.queuedSuggestion ||
+            this.queuedSuggestion.suggestion_id !== suggestionId
+          ) {
+            delete this.contributions[suggestionId];
+          }
+        });
+      },
+      () => {
+        // Note to developers:
+        // This callback is triggered when the Cancel button is clicked.
+        // No further action is needed.
+      }
+    );
+  }
+
+  startCommitTimeout(): void {
+    if (this.commitTimeout) {
+      clearTimeout(this.commitTimeout);
+    }
+    // Start a new timeout for commit after timeframe.
+    this.commitTimeout = setTimeout(() => {
+      this.commitQueuedSuggestion();
+    }, COMMIT_TIMEOUT_DURATION);
+  }
+
+  commitQueuedSuggestion(): void {
+    if (!this.queuedSuggestionSummary || this.isCommitting) {
+      return;
+    }
+    this.isCommitting = true;
+    const currentSuggestionSummary = this.queuedSuggestionSummary;
+    this.queuedSuggestionSummary = null;
+
+    const suggestionWasAccepted =
+      currentSuggestionSummary.action_status ===
+      AppConstants.ACTION_ACCEPT_SUGGESTION;
+
+    this.contributionAndReviewService.reviewTranslationSuggestion(
+      currentSuggestionSummary.target_type,
+      currentSuggestionSummary.target_id,
+      currentSuggestionSummary.suggestion_id,
+      currentSuggestionSummary.action_status,
+      currentSuggestionSummary.reviewer_message,
+      // Only include commit_message for accepted suggestions.
+      suggestionWasAccepted && currentSuggestionSummary.commit_message
+        ? currentSuggestionSummary.commit_message
+        : null,
+      () => {
+        this.alertsService.clearMessages();
+        this.alertsService.addSuccessMessage(
+          `Suggestion ${suggestionWasAccepted ? 'accepted' : 'rejected'}.`
+        );
+        if (this.commitTimeout) {
+          clearTimeout(this.commitTimeout);
+        }
+        this.contributionOpportunitiesService.removeOpportunitiesEventEmitter.emit(
+          [currentSuggestionSummary.suggestion_id]
+        );
+        delete this.contributions[currentSuggestionSummary.suggestion_id];
+        this.isCommitting = false;
+      },
+      (errorMessage: string) => {
+        this.alertsService.clearWarnings();
+        this.alertsService.addWarning(`Invalid Suggestion: ${errorMessage}`);
+        this.isCommitting = false;
+      }
+    );
+  }
+
+  showUndoSnackbar(): void {
+    this.currentSnackbarRef =
+      this.snackBar.openFromComponent<UndoSnackbarComponent>(
+        UndoSnackbarComponent,
+        {
+          duration: COMMIT_TIMEOUT_DURATION,
+          verticalPosition: 'bottom',
+          horizontalPosition: 'right',
+        }
+      );
+    this.currentSnackbarRef.instance.message = 'Suggestion queued';
+
+    this.currentSnackbarRef.onAction().subscribe(() => {
+      this.undoReviewAction();
+    });
+
+    this.currentSnackbarRef.afterDismissed().subscribe(() => {
+      this.commitQueuedSuggestion();
+    });
+  }
+
+  undoReviewAction(): void {
+    this.queuedSuggestionSummary = null;
+    if (this.commitTimeout) {
+      clearTimeout(this.commitTimeout);
+    }
+  }
+
+  isActiveTab(tabType: string, subType: string): boolean {
+    return this.activeTabType === tabType && this.activeTabSubtype === subType;
+  }
+
+  get activeReviewTab(): boolean {
+    return this.activeTabType === this.TAB_TYPE_REVIEWS;
+  }
+
+  isReviewTranslationsTab(): boolean {
+    return (
+      this.activeTabType === this.TAB_TYPE_REVIEWS &&
+      this.activeTabSubtype === this.SUGGESTION_TYPE_TRANSLATE
+    );
+  }
+
+  isReviewQuestionsTab(): boolean {
+    return (
+      this.activeTabType === this.TAB_TYPE_REVIEWS &&
+      this.activeTabSubtype === this.SUGGESTION_TYPE_QUESTION
+    );
+  }
+
+  openQuestionSuggestionModal(
+    suggestionId: string,
+    suggestion: Suggestion,
+    reviewable: boolean,
+    question: Question | undefined = undefined
+  ): void {
+    const suggestionIdToContribution: Record<string, ActiveContributionDict> =
+      {};
+    for (let suggestionId in this.contributions) {
+      var contribution = this.contributions[suggestionId];
+      suggestionIdToContribution[suggestionId] =
+        contribution as ActiveContributionDict;
+    }
+    const skillId = suggestion.change_cmd.skill_id;
+
+    this.pageContextService.setCustomEntityContext(
+      AppConstants.IMAGE_CONTEXT.QUESTION_SUGGESTIONS,
+      skillId
+    );
+
+    this.skillBackendApiService
+      .fetchSkillAsync(skillId)
+      .then((skillDict: FetchSkillResponse) => {
+        const misconceptionsBySkill: MisconceptionSkillMap = {};
+        const skill = skillDict.skill;
+        misconceptionsBySkill[skill.getId()] = skill.getMisconceptions();
+        this._showQuestionSuggestionModal(
+          suggestion,
+          suggestionIdToContribution,
+          reviewable,
+          question as Question,
+          misconceptionsBySkill
+        );
+      });
+  }
+
+  onClickViewSuggestion(suggestionId: string): void {
+    const suggestion = this.contributions[suggestionId].suggestion;
+    const reviewable = this.activeTabType === this.TAB_TYPE_REVIEWS;
+    if (suggestion.suggestion_type === this.SUGGESTION_TYPE_QUESTION) {
+      this.openQuestionSuggestionModal(suggestionId, suggestion, reviewable);
+    }
+    if (suggestion.suggestion_type === this.SUGGESTION_TYPE_TRANSLATE) {
+      const suggestionIdToContribution: Record<string, ActiveContributionDict> =
+        {};
+      for (let suggestionId in this.contributions) {
+        const contribution = this.contributions[suggestionId];
+        suggestionIdToContribution[suggestionId] =
+          contribution as ActiveContributionDict;
+      }
+      this.pageContextService.setCustomEntityContext(
+        AppConstants.IMAGE_CONTEXT.EXPLORATION_SUGGESTIONS,
+        suggestion.target_id
+      );
+      this._showTranslationSuggestionModal(
+        suggestionIdToContribution,
+        suggestionId,
+        reviewable
+      );
+    }
+  }
+
+  getContributionSummaries(
+    suggestionIdToSuggestions: Record<string, SuggestionDetails>
+  ): ContributionsSummary[] {
+    if (this.activeTabSubtype === this.SUGGESTION_TYPE_TRANSLATE) {
+      return this.getTranslationContributionsSummary(suggestionIdToSuggestions);
+    } else if (this.activeTabSubtype === this.SUGGESTION_TYPE_QUESTION) {
+      return this.getQuestionContributionsSummary(suggestionIdToSuggestions);
+    }
+    return [];
+  }
+
+  getActiveDropdownTabText(tabType: string, subType: string): string {
+    const tabs = this.contributionTabs.concat(
+      this.reviewTabs,
+      this.accomplishmentsTabs
+    );
+    const tab = tabs.find(
+      tab => tab.tabType === tabType && tab.tabSubType === subType
+    );
+
+    if (!tab) {
+      throw new Error('Cannot find the tab');
+    }
+
+    return tab.text;
+  }
+
+  switchToTab(tabType: string, subType: string): void {
+    this.windowRef.nativeWindow.scrollTo(0, 0);
+    this.activeTabType = tabType;
+    this.dropdownShown = false;
+    this.activeDropdownTabChoice = this.getActiveDropdownTabText(
+      tabType,
+      subType
+    );
+
+    this.activeTabSubtype = subType;
+    this.contributionAndReviewService.setActiveTabType(tabType);
+    this.contributionAndReviewService.setActiveSuggestionType(subType);
+    if (!this.isAccomplishmentsTabActive()) {
+      this.activeExplorationId = '';
+      this.contributionOpportunitiesService.reloadOpportunitiesEventEmitter.emit();
+    }
+  }
+
+  toggleDropdown(): void {
+    this.dropdownShown = !this.dropdownShown;
+  }
+
+  loadReviewableTranslationOpportunities(): Promise<GetOpportunitiesResponse> {
+    return this.contributionOpportunitiesService
+      .getReviewableTranslationOpportunitiesAsync(
+        this.translationTopicService.getActiveTopicName(),
+        this.languageCode,
+        this.activeEntityType
+      )
+      .then(
+        (response: {
+          opportunities: ExplorationOpportunitySummary[];
+          more: boolean;
+        }) => {
+          // Keep the correct object type for this.opportunities.
+          this.opportunities = response.opportunities;
+          const opportunitiesDicts: Opportunity[] = [];
+          response.opportunities.forEach(
+            (opportunity: ExplorationOpportunitySummary) => {
+              const opportunityDict: Opportunity = {
+                id: opportunity.getExplorationId(),
+                heading: opportunity.getOpportunityHeading(),
+                subheading: opportunity.getOpportunitySubheading(),
+                labelText: '',
+                labelColor: '',
+                actionButtonTitle: 'Translations',
+                isPinned: opportunity.isPinned,
+                topicName: opportunity.topicName,
+                totalCount: opportunity.getContentCount(),
+                translationsCount: opportunity.getTranslationsCount(
+                  this.languageCode
+                ),
+                inReviewCount: opportunity.getTranslationsInReviewCount(
+                  this.languageCode
+                ),
+                progressPercentage: opportunity
+                  .getTranslationProgressPercentage(this.languageCode)
+                  .toFixed(2),
+                // The list can mix entity types when the filter is on "All", so
+                // each opportunity carries its own type for the suggestion fetch
+                // that follows a click. Legacy opportunities carry no entity type
+                // and are always explorations.
+                entityType:
+                  opportunity.entityType ||
+                  AppConstants.ENTITY_TYPE.EXPLORATION,
+              };
+              opportunitiesDicts.push(opportunityDict);
+            }
+          );
+          return {
+            opportunitiesDicts: opportunitiesDicts,
+            more: response.more,
+          };
+        }
+      );
+  }
+
+  pinReviewableTranslationOpportunity(dict: Record<string, string>): void {
+    const topicName = dict.topic_name;
+    const explorationId = dict.exploration_id;
+    const existingPinnedOpportunity = Object.values(this.opportunities).find(
+      (opportunity: {topicName: string; isPinned: boolean}) =>
+        opportunity.topicName === topicName && opportunity.isPinned
+    );
+
+    if (existingPinnedOpportunity) {
+      this.openSnackbarWithAction(
+        topicName,
+        explorationId,
+        'A pinned opportunity already exists for this topic and language.',
+        'Pin Anyway'
+      );
+    } else {
+      this.contributionOpportunitiesService.pinReviewableTranslationOpportunityAsync(
+        topicName,
+        this.languageCode,
+        explorationId
+      );
+    }
+  }
+
+  unpinReviewableTranslationOpportunity(dict: Record<string, string>): void {
+    this.contributionOpportunitiesService.unpinReviewableTranslationOpportunityAsync(
+      dict.topic_name,
+      this.languageCode,
+      dict.exploration_id
+    );
+  }
+
+  onClickReviewableTranslations(entityId: string): void {
+    this.activeExplorationId = entityId;
+  }
+
+  /**
+   * Returns the entity type to fetch suggestions for. An opened opportunity
+   * decides its own type, because the "All" filter lists several entity types
+   * side by side and the filter cannot say which one was clicked.
+   */
+  private getEntityTypeForSuggestionFetch(): string | undefined {
+    const activeOpportunity = this.opportunities.find(
+      opportunity => opportunity.id === this.activeExplorationId
+    );
+    const entityType = activeOpportunity?.entityType || this.activeEntityType;
+    return entityType === ContributorDashboardConstants.ENTITY_TYPE_SENTINEL_ALL
+      ? undefined
+      : entityType;
+  }
+
+  onClickBackToReviewableLessons(): void {
+    this.activeExplorationId = '';
+  }
+
+  loadContributions(
+    shouldResetOffset: boolean
+  ): Promise<GetOpportunitiesResponse> {
+    if (shouldResetOffset) {
+      this.contributions = {};
+    }
+    if (!this.activeTabType || !this.activeTabSubtype) {
+      return new Promise((resolve, reject) => {
+        resolve({opportunitiesDicts: [], more: false});
+      });
+    }
+    const requestedTabType = this.activeTabType;
+    const requestedTabSubtype = this.activeTabSubtype;
+    const fetchFunction =
+      this.tabNameToOpportunityFetchFunction[this.activeTabSubtype][
+        this.activeTabType
+      ];
+
+    return fetchFunction(shouldResetOffset)
+      .then(
+        (response: {
+          suggestionIdToDetails: Record<string, SuggestionDetails>;
+          more: boolean;
+        }) => {
+          if (
+            this.activeTabType !== requestedTabType ||
+            this.activeTabSubtype !== requestedTabSubtype
+          ) {
+            // The active tab changed while this request was in flight, so this
+            // is a stale response. Ignore it to avoid processing data for a tab
+            // the user has already navigated away from.
+            return {opportunitiesDicts: [], more: false};
+          }
+          Object.keys(response.suggestionIdToDetails).forEach((id: string) => {
+            this.contributions[id] = response.suggestionIdToDetails[id];
+          });
+          return {
+            opportunitiesDicts: this.getContributionSummaries(
+              response.suggestionIdToDetails
+            ),
+            more: response.more,
+          };
+        }
+      )
+      .catch((error: HttpErrorResponse) => {
+        // A banned or otherwise non-full-user has no ACTION_SUGGEST_CHANGES
+        // permission, so the suggestion endpoints respond with 401. Handle it
+        // gracefully by showing an empty state instead of letting the
+        // rejection surface as an unhandled promise rejection. Any other
+        // error is rethrown.
+        if (error.status === 401) {
+          return {opportunitiesDicts: [], more: false};
+        }
+        throw error;
+      });
+  }
+
+  loadOpportunities(): Promise<GetOpportunitiesResponse> {
+    return this.loadContributions(/* Param shouldResetOffset= */ true);
+  }
+
+  loadMoreOpportunities(): Promise<GetOpportunitiesResponse> {
+    return this.loadContributions(/* Param shouldResetOffset= */ false);
+  }
+
+  @HostListener('document:click', ['$event'])
+  closeDropdownWhenClickedOutside(clickEvent: {target: Node}): void {
+    const dropdown = document.querySelector(
+      '.oppia-contributions-dropdown-container'
+    );
+    if (!dropdown) {
+      return;
+    }
+
+    const clickOccurredWithinDropdown = dropdown.contains(clickEvent.target);
+    if (clickOccurredWithinDropdown) {
+      return;
+    }
+
+    this.dropdownShown = false;
+  }
+
+  isAccomplishmentsTabActive(): boolean {
+    return this.activeTabType === this.TAB_TYPE_ACCOMPLISHMENTS;
+  }
+
+  setReviewableQuestionsSortKey(sortKey: string): void {
+    this.reviewableQuestionsSortKey = sortKey;
+    this.contributionOpportunitiesService.reloadOpportunitiesEventEmitter.emit();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // The first change is the initial binding, which arrives before the lists
+    // have loaded anything, so only a later change to the filter needs to
+    // close the open opportunity and reload.
+    if (changes.activeEntityType && !changes.activeEntityType.isFirstChange()) {
+      this.activeExplorationId = '';
+      this.contributionOpportunitiesService.reloadOpportunitiesEventEmitter.emit();
+    }
+  }
+
+  ngOnInit(): void {
+    this.SUGGESTION_TYPE_QUESTION = 'add_question';
+    this.SUGGESTION_TYPE_TRANSLATE = 'translate_content';
+    this.ACCOMPLISHMENTS_TYPE_STATS = 'stats';
+    this.ACCOMPLISHMENTS_TYPE_BADGE = 'badges';
+    this.TAB_TYPE_CONTRIBUTIONS = 'contributions';
+    this.TAB_TYPE_REVIEWS = 'reviews';
+    this.TAB_TYPE_ACCOMPLISHMENTS = 'accomplishments';
+    this.REVIEWABLE_QUESTIONS_SORT_KEYS = [
+      AppConstants.SUGGESTIONS_SORT_KEY_DATE,
+    ];
+    this.userCreatedQuestionsSortKey = AppConstants.SUGGESTIONS_SORT_KEY_DATE;
+    this.reviewableQuestionsSortKey = AppConstants.SUGGESTIONS_SORT_KEY_DATE;
+    this.userCreatedTranslationsSortKey =
+      AppConstants.SUGGESTIONS_SORT_KEY_DATE;
+    this.reviewableTranslationsSortKey = AppConstants.SUGGESTIONS_SORT_KEY_DATE;
+    this.activeExplorationId = '';
+    this.contributions = {};
+    this.userDetailsLoading = true;
+    this.userIsLoggedIn = false;
+    this.topicReady = false;
+    this.languageCode = this.translationLanguageService.getActiveLanguageCode();
+    this.activeTabType = '';
+    this.activeTabSubtype = '';
+    this.dropdownShown = false;
+    this.activeDropdownTabChoice = '';
+    this.reviewTabs = [];
+    this.contributionTabs = [
+      {
+        tabType: this.TAB_TYPE_CONTRIBUTIONS,
+        tabSubType: this.SUGGESTION_TYPE_QUESTION,
+        text: 'Questions',
+        enabled: false,
+      },
+      {
+        tabType: this.TAB_TYPE_CONTRIBUTIONS,
+        tabSubType: this.SUGGESTION_TYPE_TRANSLATE,
+        text: 'Translations',
+        enabled: true,
+      },
+    ];
+    this.accomplishmentsTabs = [
+      {
+        tabSubType: 'stats',
+        tabType: this.TAB_TYPE_ACCOMPLISHMENTS,
+        text: 'Contribution Stats',
+        enabled: true,
+      },
+      {
+        tabSubType: 'badges',
+        tabType: this.TAB_TYPE_ACCOMPLISHMENTS,
+        text: 'Badges',
+        enabled: true,
+      },
+    ];
+
+    // Whenever the active topic changes, update the `topicReady` flag.
+    // `topicReady` is true if there is an active topic, false otherwise.
+    // This flag can be used to conditionally render parts of the UI or
+    // enable/disable features that depend on a selected topic.
+    this.translationTopicService.onActiveTopicChanged.subscribe(() => {
+      const topic = this.translationTopicService.getActiveTopicName();
+      this.topicReady = !!topic;
+    });
+
+    // Reset active exploration when changing topics.
+    this.directiveSubscriptions.add(
+      this.translationTopicService.onActiveTopicChanged.subscribe(() => {
+        this.activeExplorationId = '';
+      })
+    );
+
+    this.directiveSubscriptions.add(
+      this.contributionOpportunitiesService.removeOpportunitiesEventEmitter.subscribe(
+        (suggestionIds: string[]) => {
+          suggestionIds.forEach((suggestionId: string) => {
+            delete this.contributions[suggestionId];
+          });
+        }
+      )
+    );
+
+    this.userService.getUserInfoAsync().then(userInfo => {
+      this.userIsLoggedIn = userInfo.isLoggedIn();
+      this.userDetailsLoading = false;
+      if (this.userIsLoggedIn) {
+        this.userService
+          .getUserContributionRightsDataAsync()
+          .then(userContributionRights => {
+            if (!userContributionRights) {
+              return;
+            }
+            const userCanReviewTranslationSuggestionsInLanguages =
+              userContributionRights.can_review_translation_for_language_codes;
+            const userCanReviewQuestionSuggestions =
+              userContributionRights.can_review_questions;
+            const userReviewableSuggestionTypes: string[] = [];
+            const userCanSuggestQuestions =
+              userContributionRights.can_suggest_questions;
+            for (let index in this.contributionTabs) {
+              const tab = this.contributionTabs[index];
+              if (tab && tab.tabSubType === this.SUGGESTION_TYPE_QUESTION) {
+                const idx = Number(index);
+                const tabAtIdx = this.contributionTabs[idx];
+                if (tabAtIdx) {
+                  tabAtIdx.enabled = userCanSuggestQuestions;
+                }
+              }
+            }
+            if (userCanReviewQuestionSuggestions) {
+              this.reviewTabs.push({
+                tabType: this.TAB_TYPE_REVIEWS,
+                tabSubType: this.SUGGESTION_TYPE_QUESTION,
+                text: 'Review Questions',
+                enabled: false,
+              });
+              userReviewableSuggestionTypes.push(this.SUGGESTION_TYPE_QUESTION);
+            }
+            if (userCanReviewTranslationSuggestionsInLanguages.length > 0) {
+              this.reviewTabs.push({
+                tabType: this.TAB_TYPE_REVIEWS,
+                tabSubType: this.SUGGESTION_TYPE_TRANSLATE,
+                text: 'Review Translations',
+                enabled: false,
+              });
+              userReviewableSuggestionTypes.push(
+                this.SUGGESTION_TYPE_TRANSLATE
+              );
+            }
+            if (userReviewableSuggestionTypes.length > 0) {
+              this.switchToTab(
+                this.TAB_TYPE_REVIEWS,
+                userReviewableSuggestionTypes[0]
+              );
+            } else if (userCanSuggestQuestions) {
+              this.switchToTab(
+                this.TAB_TYPE_CONTRIBUTIONS,
+                this.SUGGESTION_TYPE_QUESTION
+              );
+            } else {
+              this.switchToTab(
+                this.TAB_TYPE_CONTRIBUTIONS,
+                this.SUGGESTION_TYPE_TRANSLATE
+              );
+            }
+          });
+      }
+    });
+
+    this.tabNameToOpportunityFetchFunction = {
+      [this.SUGGESTION_TYPE_QUESTION]: {
+        [this.TAB_TYPE_CONTRIBUTIONS]: (shouldResetOffset: boolean) => {
+          return this.contributionAndReviewService.getUserCreatedQuestionSuggestionsAsync(
+            shouldResetOffset,
+            this.userCreatedQuestionsSortKey
+          );
+        },
+        [this.TAB_TYPE_REVIEWS]: (shouldResetOffset: boolean) => {
+          return this.contributionAndReviewService.getReviewableQuestionSuggestionsAsync(
+            shouldResetOffset,
+            this.reviewableQuestionsSortKey,
+            this.translationTopicService.getActiveTopicName()
+          );
+        },
+      },
+      [this.SUGGESTION_TYPE_TRANSLATE]: {
+        [this.TAB_TYPE_CONTRIBUTIONS]: (shouldResetOffset: boolean) => {
+          return this.contributionAndReviewService.getUserCreatedTranslationSuggestionsAsync(
+            shouldResetOffset,
+            this.userCreatedTranslationsSortKey,
+            this.activeEntityType
+          );
+        },
+        [this.TAB_TYPE_REVIEWS]: (shouldResetOffset: boolean) => {
+          return this.contributionAndReviewService.getReviewableTranslationSuggestionsAsync(
+            shouldResetOffset,
+            this.reviewableTranslationsSortKey,
+            this.activeExplorationId,
+            this.getEntityTypeForSuggestionFetch()
+          );
+        },
+      },
+    };
+  }
+
+  openSnackbarWithAction(
+    topicName: string,
+    explorationId: string,
+    message: string,
+    actionText: string
+  ): void {
+    const snackBarRef: CustomMatSnackBarRef = this.snackBar.open(
+      message,
+      actionText,
+      {
+        duration: 3000,
+      }
+    );
+
+    this.handleSnackbarAction(snackBarRef, topicName, explorationId);
+  }
+
+  private handleSnackbarAction(
+    snackBarRef: CustomMatSnackBarRef,
+    topicName: string,
+    explorationId: string
+  ): void {
+    snackBarRef.onAction().subscribe(() => {
+      this.contributionOpportunitiesService.pinReviewableTranslationOpportunityAsync(
+        topicName,
+        this.languageCode,
+        explorationId
+      );
+    });
+  }
+
+  onChangeLanguage(languageCode: string): void {
+    this.languageCode = languageCode;
+    this.opportunitiesListRef.onChangeLanguage(languageCode);
+  }
+
+  ngOnDestroy(): void {
+    this.directiveSubscriptions.unsubscribe();
+  }
+}

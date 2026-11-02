@@ -1,0 +1,16 @@
+<div class="input-group">
+  <span>
+    <mat-form-field class="long oppia-blue-on-focus m-0" appearance="fill">
+      <input type="number"
+             matNativeControl
+             [(ngModel)]="localValue"
+             (ngModelChange)="updateValue($event)"
+             [disabled]="disabled"
+             required="!notRequired"
+             applyValidation [validators]="validators"
+             (blur)="inputBlur.emit()"
+             (focus)="inputFocus.emit()"
+             class="e2e-test-editor-int">
+    </mat-form-field>
+  </span>
+</div>

@@ -1,0 +1,31 @@
+<div class="list-group skill-selector-editor">
+  <mat-card layout="row" class="list-view-item e2e-test-skill-select-header">
+    Search By Skill
+    <input type="text"
+           class="form-control e2e-test-skill-name-input"
+           placeholder="Enter a skill name"
+           [(ngModel)]="skillFilterText"
+           (ngModelChange)="filterSkills($event)"
+           [disabled]="showLoading"
+           autofocus>
+  </mat-card>
+  <div *ngIf="showLoading" class="oppia-align-center">
+    Loading
+    <loading-dots></loading-dots>
+  </div>
+  <div class="skill-selector-item-container">
+    <div class="oppia-list-group-item-text list-group-item e2e-test-rte-skill-selector-item"
+         *ngFor="let skill of skillsToShow"
+         (click)="selectSkill(skill.id, skill.description)"
+         [ngClass]="{'list-group-item-success e2e-test-rte-skill-selected': (skill.id === value)}">
+      <label class="list-group-item-heading">{{ skill.description }}</label>
+      <div *ngIf="skill.id === value" class="oppia-skill-summary-text">
+        <strong> Explanation </strong>
+        <div class="skill-explanation-container">
+          <oppia-rte-output-display [rteString]="skill.skill_contents.explanation.html">
+          </oppia-rte-output-display>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

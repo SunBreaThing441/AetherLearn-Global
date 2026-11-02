@@ -1,0 +1,16 @@
+<mat-form-field class="choices-field">
+  <mat-select [placeholder]="placeholder"
+              [value]="selection"
+              (valueChange)="updateSelection($event)">
+    <mat-option *ngIf="isSearchable">
+      <ngx-mat-select-search ngModel
+                             (ngModelChange)="filterChoices($event)"
+                             [placeholderLabel]="searchLabel"
+                             [noEntriesFoundLabel]="noEntriesFoundLabel">
+      </ngx-mat-select-search>
+    </mat-option>
+    <mat-option *ngFor="let choice of filteredChoices" [value]="choice">
+      {{ choice }}
+    </mat-option>
+  </mat-select>
+</mat-form-field>

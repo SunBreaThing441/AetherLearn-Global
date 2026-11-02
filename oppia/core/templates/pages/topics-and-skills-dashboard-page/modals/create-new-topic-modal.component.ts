@@ -1,0 +1,152 @@
+// Copyright 2021 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Modal for the creating new topic.
+ */
+
+import {Component} from '@angular/core';
+import {NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
+import {AppConstants} from 'app.constants';
+import {ConfirmOrCancelModal} from 'components/common-layout-directives/common-elements/confirm-or-cancel-modal.component';
+import {NewlyCreatedTopic} from 'domain/topics_and_skills_dashboard/newly-created-topic.model';
+import {TopicEditorStateService} from 'pages/topic-editor-page/services/topic-editor-state.service';
+import {PageContextService} from 'services/page-context.service';
+import {WindowRef} from 'services/contextual/window-ref.service';
+import {ImageLocalStorageService} from 'services/image-local-storage.service';
+import {
+  ImageUploaderData,
+  ImageUploaderParameters,
+} from 'components/forms/custom-forms-directives/image-uploader.component';
+import './create-new-topic-modal.component.css';
+
+@Component({
+  selector: 'oppia-create-new-topic-modal',
+  templateUrl: './create-new-topic-modal.component.html',
+  styleUrls: ['./create-new-topic-modal.component.css'],
+})
+export class CreateNewTopicModalComponent extends ConfirmOrCancelModal {
+  allowedBgColors: object = AppConstants.ALLOWED_THUMBNAIL_BG_COLORS.topic;
+  validUrlFragmentRegex = new RegExp(AppConstants.VALID_URL_FRAGMENT_REGEX);
+  newlyCreatedTopic: NewlyCreatedTopic = NewlyCreatedTopic.createDefault();
+  hostname: string = this.windowRef.nativeWindow.location.hostname;
+  MAX_CHARS_IN_TOPIC_NAME: number = AppConstants.MAX_CHARS_IN_TOPIC_NAME;
+  MAX_CHARS_IN_TOPIC_DESCRIPTION: number =
+    AppConstants.MAX_CHARS_IN_TOPIC_DESCRIPTION;
+
+  MAX_CHARS_IN_TOPIC_URL_FRAGMENT =
+    AppConstants.MAX_CHARS_IN_TOPIC_URL_FRAGMENT;
+
+  topicUrlFragmentExists: boolean = false;
+  topicNameExists: boolean = false;
+  maxWebTitleFrag = AppConstants.MAX_CHARS_IN_PAGE_TITLE_FRAGMENT_FOR_WEB;
+  minWebTitleFrag = AppConstants.MIN_CHARS_IN_PAGE_TITLE_FRAGMENT_FOR_WEB;
+  generatedUrlPrefix = `${this.hostname}/learn/staging`;
+  imageUploaderParameters!: ImageUploaderParameters;
+
+  constructor(
+    private pageContextService: PageContextService,
+    private ngbActiveModal: NgbActiveModal,
+    private imageLocalStorageService: ImageLocalStorageService,
+    private windowRef: WindowRef,
+    private topicEditorStateService: TopicEditorStateService
+  ) {
+    super(ngbActiveModal);
+  }
+
+  ngOnInit(): void {
+    this.pageContextService.setImageSaveDestinationToLocalStorage();
+    this.imageUploaderParameters = {
+      disabled: false,
+      maxImageSizeInKB: 100,
+      imageName: 'Thumbnail',
+      orientation: 'landscape',
+      bgColor: (this.allowedBgColors as string[])[0],
+      allowedBgColors: this.allowedBgColors as string[],
+      allowedImageFormats: ['svg'],
+      aspectRatio: '4:3',
+      previewTitle: this.newlyCreatedTopic.name,
+      previewDescriptionBgColor: '#2F6687',
+    };
+  }
+
+  onImageSave(imageData: ImageUploaderData): void {
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.imageLocalStorageService.saveImage(
+        imageData.filename,
+        reader.result as string
+      );
+    };
+    reader.readAsDataURL(imageData.image_data);
+    this.imageLocalStorageService.setThumbnailBgColor(imageData.bg_color);
+  }
+
+  save(): void {
+    this.ngbActiveModal.close(this.newlyCreatedTopic);
+  }
+
+  cancel(): void {
+    this.ngbActiveModal.dismiss('cancel');
+  }
+
+  isValid(): boolean {
+    return Boolean(
+      this.newlyCreatedTopic.isValid() &&
+        this.imageLocalStorageService.getStoredImagesData().length > 0
+    );
+  }
+
+  onUrlFragmentChange(urlFragment: string): void {
+    this.newlyCreatedTopic.urlFragment = urlFragment;
+    this.onTopicUrlFragmentChange();
+  }
+
+  onTopicUrlFragmentChange(): void {
+    if (!this.newlyCreatedTopic.urlFragment) {
+      return;
+    }
+    this.topicEditorStateService.updateExistenceOfTopicUrlFragment(
+      this.newlyCreatedTopic.urlFragment,
+      () => {
+        this.topicUrlFragmentExists =
+          this.topicEditorStateService.getTopicWithUrlFragmentExists();
+      },
+      () => {
+        return;
+      }
+    );
+  }
+
+  onTopicNameChange(): void {
+    if (!this.newlyCreatedTopic.name) {
+      return;
+    }
+
+    this.newlyCreatedTopic.name = this.newlyCreatedTopic.name
+      .replace(/\s+/g, ' ')
+      .trim();
+    this.topicEditorStateService.updateExistenceOfTopicName(
+      this.newlyCreatedTopic.name,
+      () => {
+        this.topicNameExists =
+          this.topicEditorStateService.getTopicWithNameExists();
+      }
+    );
+    this.imageUploaderParameters = {
+      ...this.imageUploaderParameters,
+      previewTitle: this.newlyCreatedTopic.name,
+    };
+  }
+}

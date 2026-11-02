@@ -1,0 +1,174 @@
+<div class="creator-container" role="main">
+  <!-- Studio Header -->
+  <div class="studio-header">
+    <div class="header-text">
+      <span class="badge-cat">UNESCO OER AUTHORING NEXUS</span>
+      <h2>Holo-Studio: Exploration Architect</h2>
+      <p>Engineer branching state trees, calibrate pedagogical feedback loops, and publish peer-reviewed OER lessons.</p>
+    </div>
+  </div>
+
+  <!-- Metric Summary Cards -->
+  <div class="metrics-grid" *ngIf="stats$ | async as stats">
+    <div class="metric-card">
+      <div class="m-val">{{ stats.total_plays || 2310 }}</div>
+      <div class="m-lbl">Total Scholar Plays</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="m-val">{{ (stats.average_ratings || 4.88) | number:'1.2-2' }} ⭐</div>
+      <div class="m-lbl">Peer Review Rating</div>
+    </div>
+
+    <div class="metric-card">
+      <div class="m-val">{{ stats.total_open_feedback || 2 }}</div>
+      <div class="m-lbl">Open Feedback Threads</div>
+    </div>
+  </div>
+
+  <!-- Active Exploration State Graph Workspace -->
+  <div class="editor-section" *ngIf="activeDraft$ | async as draft; else authoringOverview">
+    <div class="draft-header">
+      <div class="draft-title-box">
+        <span class="status-badge">ARCHITECTING STATE TREE</span>
+        <h3>{{ draft.exploration?.title || selectedExplorationId }}</h3>
+      </div>
+      <div class="draft-actions">
+        <button type="button" class="contrast-btn" (click)="toggleTestPlay()">
+          {{ isTestPlaying ? '✕ Close Simulator' : '▶️ Test Play Sandbox' }}
+        </button>
+        <input 
+          type="text" 
+          class="commit-input" 
+          [(ngModel)]="commitMessage" 
+          placeholder="Describe state modifications..."
+          aria-label="Commit Message">
+        <button 
+          type="button" 
+          class="spa-primary-btn save-btn" 
+          [disabled]="isSaving$ | async"
+          (click)="saveDraft(draft.version || 1)">
+          {{ (isSaving$ | async) ? 'Publishing...' : '💾 Commit Changes' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Sandbox Test-Play Simulator Drawer -->
+    <div class="test-play-drawer" *ngIf="isTestPlaying">
+      <div class="drawer-header">
+        <h4>🧪 Live State Simulation Sandbox</h4>
+        <span class="sim-state">Simulating Node: <strong>{{ selectedStateName }}</strong></span>
+      </div>
+      <div class="sim-content-box" *ngIf="draft.exploration?.states[selectedStateName] as simState">
+        <div class="card-html-content" [innerHTML]="simState.content.html"></div>
+        <div class="sim-interaction-info">
+          <span>Interaction: <strong>{{ simState.interaction.id }}</strong></span>
+          <span>Outcomes: <strong>{{ graphNodes.length }} connected nodes</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2D State Machine Node Graph Canvas -->
+    <div class="graph-canvas-container">
+      <div class="canvas-header">
+        <h4>Interactive State Machine Node Graph</h4>
+        <span class="nodes-count">{{ graphNodes.length }} Active State Nodes</span>
+      </div>
+
+      <div class="nodes-grid-flow">
+        <div 
+          *ngFor="let node of graphNodes"
+          class="state-graph-node"
+          [class.active-selected]="selectedStateName === node.name"
+          [class.initial-node]="node.isInitial"
+          [class.terminal-node]="node.isTerminal"
+          (click)="selectState(node.name, draft.exploration)">
+          <div class="node-badge-tier">
+            {{ node.isInitial ? 'START' : (node.isTerminal ? 'TERMINAL' : 'STATE CARD') }}
+          </div>
+          <div class="node-title-text">{{ node.name }}</div>
+          <div class="node-type-label">{{ node.interactionId }}</div>
+
+          <!-- Outgoing Transition Links -->
+          <div class="node-transitions" *ngIf="node.destinations.length">
+            <span class="transition-pill" *ngFor="let dest of node.destinations">
+              ➔ {{ dest }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State Property Inspector Drawer -->
+    <div class="state-inspector" *ngIf="selectedStateName && draft.exploration?.states[selectedStateName] as inspectedState">
+      <div class="inspector-header">
+        <h4>State Inspector: <span>{{ selectedStateName }}</span></h4>
+        <span class="badge-cat">{{ inspectedState.interaction.id }}</span>
+      </div>
+
+      <div class="inspector-body">
+        <label class="inspector-label">Card Content (HTML / Math / Markdown)</label>
+        <textarea 
+          class="state-content-editor" 
+          rows="6" 
+          [(ngModel)]="editingStateContent"
+          (ngModelChange)="onSaveContentChange(draft)"
+          placeholder="Enter tutor dialogue text, explanations, or interactive concepts...">
+        </textarea>
+
+        <div class="inspector-destinations">
+          <h5>Learner Transition Pathways</h5>
+          <div class="transitions-list" *ngIf="inspectedState.interaction.answer_groups?.length; else defaultOnly">
+            <div class="trans-item" *ngFor="let ag of inspectedState.interaction.answer_groups; let gIdx = index">
+              <span class="rule-lbl">Rule {{ gIdx + 1 }}:</span>
+              <span class="dest-target">Leads to ➔ <strong>{{ ag.outcome?.dest }}</strong></span>
+            </div>
+            <div class="trans-item default-item">
+              <span class="rule-lbl">Default:</span>
+              <span class="dest-target">Leads to ➔ <strong>{{ inspectedState.interaction.default_outcome?.dest }}</strong></span>
+            </div>
+          </div>
+          <ng-template #defaultOnly>
+            <div class="trans-item default-item">
+              <span class="rule-lbl">Continue Transition:</span>
+              <span class="dest-target">Leads to ➔ <strong>{{ inspectedState.interaction.default_outcome?.dest || 'End' }}</strong></span>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Authored Explorations Table Overview -->
+  <ng-template #authoringOverview>
+    <div class="explorations-management">
+      <h3>Authored Exploration State Trees</h3>
+      <div class="table-container">
+        <table class="explorations-table">
+          <thead>
+            <tr>
+              <th>Exploration Title</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Version</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let exp of explorations$ | async">
+              <td class="exp-title-cell">{{ exp.title }}</td>
+              <td><span class="pill">{{ exp.category }}</span></td>
+              <td><span class="status-pill published">Published</span></td>
+              <td>v{{ exp.version }}</td>
+              <td>
+                <button type="button" class="spa-secondary-btn edit-btn" (click)="selectExplorationToEdit(exp.id)">
+                  ✏️ Open in Holo-Studio
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </ng-template>
+</div>

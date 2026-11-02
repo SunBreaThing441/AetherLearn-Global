@@ -1,0 +1,133 @@
+<div *ngIf="isSerialChapterFeatureFlagEnabled()">
+  <div class="modal-header">
+    <span *ngIf="unpublishedChapters.length === 1">Unpublish Chapter</span>
+    <span *ngIf="unpublishedChapters.length > 1">Unpublish Chapters</span>
+  </div>
+  <div class="modal-body">
+    <p>
+      You're attempting to unpublish
+      <span *ngIf="unpublishedChapters.length === 1">chapter {{ unpublishedChapters[0] }}</span>
+      <span *ngIf="unpublishedChapters.length > 1">chapters {{ unpublishedChapters[0] }}-{{ unpublishedChapters[unpublishedChapters.length - 1] }}</span>
+      of this story. Please specify a reason and note the warning
+      message before proceeding.
+    </p>
+    <div class="modal-body-actions">
+      <div class="oppia-reason-select">
+        <span>Select Reason:</span>
+        <div ngbDropdown class="oppia-unpublishing-dropdown">
+          <div ngbDropdownToggle
+               aria-label="Dropdown toggle to select unpublishing reason"
+               aria-haspopup="menu"
+               aria-expanded="false"
+               class="oppia-selected-reason-text">
+            {{ selectedReasonText }}
+          </div>
+          <div ngbDropdownMenu
+               class="oppia-unpublishing-dropdown-menu">
+            <div ngbDropdownItem
+                 (click)="setReason('BAD_CONTENT')"
+                 (keydown.enter)="setReason('BAD_CONTENT')"
+                 class="oppia-unpublishing-dropdown-item"
+                 tabindex="0">
+              {{ badContentReasonText }}
+            </div>
+            <hr>
+            <div ngbDropdownItem
+                 (click)="setReason('CHAPTER_NEEDS_SPLITTING')"
+                 (keydown.enter)="setReason('CHAPTER_NEEDS_SPLITTING')"
+                 class="oppia-unpublishing-dropdown-item"
+                 tabindex="0">
+              {{ splitChapterReasonText }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="oppia-warning-and-confirmation">
+        <div class="oppia-warning-container">
+          <span>Warning:</span>
+          <div class="bad-content-warning oppia-warning-text"
+               *ngIf="unpublishingReason=='BAD_CONTENT'"
+               tabindex="0"
+               role="alert">
+            Please edit the existing explorations instead of adding/deleting new ones, to avoid inadvertently impacting learners' progress.
+          </div>
+          <div class="split-chapters-warning oppia-warning-text"
+               *ngIf="unpublishingReason=='CHAPTER_NEEDS_SPLITTING'"
+               tabindex="0"
+               role="alert">
+            Please note that learners' overall progress score will decrease if some of the content they've played gets moved to a new exploration.
+          </div>
+        </div>
+        <div class="oppia-modal-buttons">
+          <button class="btn oppia-cancel-button e2e-test-cancel-unpublish-modal-button"
+                  (click)="cancel()"
+                  (keydown.enter)="cancel()">
+                  Cancel
+          </button>
+          <button class="btn oppia-confirm-reason-button e2e-test-confirm-unpublish-modal-button"
+                  (click)="confirm()"
+                  (keydown.enter)="confirm()">
+            Confirm and Unpublish
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="!isSerialChapterFeatureFlagEnabled()">
+  <div *ngIf="showingChoiceScreen">
+    <div class="modal-header">
+      <p>Are you unpublishing this story temporarily or permanently?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary"
+              (click)="cancel()"
+              (keydown.enter)="cancel()"
+              type="button">
+            Cancel
+      </button>
+      <button class="btn btn-success e2e-test-close-save-modal-button"
+              (click)="selectTemporary()"
+              (keydown.enter)="selectTemporary()">
+            Temporarily
+      </button>
+      <button class="btn btn-success e2e-test-close-save-modal-button"
+              (click)="selectPermanent()"
+              (keydown.enter)="selectPermanent()">
+            Permanently
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="!showingChoiceScreen">
+    <div class="modal-header">
+      <p *ngIf="mode === 'temporary_unpublish'">
+        Are you sure you want to temporarily unpublish this story? Temporarily
+        unpublishing a story will retain any corresponding translation
+        opportunities on the Contributor Dashboard. Please republish the story
+        within 24 hours to avoid disrupting learners currently engaged with it.
+      </p>
+      <p *ngIf="mode === 'permanent_unpublish'">
+        Are you sure you want to permanently unpublish this story? Permanently
+        unpublishing a story will delete any corresponding translation
+        opportunities from the Contributor Dashboard and reject any related
+        pending translation suggestions.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary"
+              (click)="cancel()"
+              (keydown.enter)="cancel()"
+              type="button">
+            Cancel
+      </button>
+      <button class="btn btn-success e2e-test-close-save-modal-button"
+              (click)="confirm()"
+              (keydown.enter)="confirm()">
+            Unpublish Story
+      </button>
+    </div>
+  </div>
+</div>

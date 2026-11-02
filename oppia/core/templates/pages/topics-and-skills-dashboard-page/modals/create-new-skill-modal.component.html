@@ -1,0 +1,59 @@
+<div class="modal-header create-new-skill-modal-header">
+  <h3 class="e2e-test-modal-header">New Skill</h3>
+  <i class="fa fa-times modal-close-button" (click)="cancel()"></i>
+</div>
+
+<form (submit)="createNewSkill()">
+  <div class="modal-body create-new-skill-modal">
+    <div class="skill-description-box">
+      <div class="skill-description-header">
+        <strong>Skill Description</strong>
+      </div>
+      <input type="text" class="form-control e2e-test-new-skill-description-field"
+             placeholder="eg: Adding Fractions" (change)="updateSkillDescriptionAndCheckIfExists()"
+             [(ngModel)]="this.newSkillDescription" [ngModelOptions]="{standalone: true}"
+             autofocus [attr.maxlength]="MAX_CHARS_IN_SKILL_DESCRIPTION"
+             attr.label="Skill Description">
+      <span class="oppia-input-box-subtitle">
+        <i>
+          Skill description should be at most {{ MAX_CHARS_IN_SKILL_DESCRIPTION }} characters.
+        </i>
+      </span>
+      <span *ngIf="errorMsg" class="skill-description-error-message">
+        <i>
+          {{errorMsg}}
+        </i>
+      </span>
+    </div>
+    <div class="skill-review-material-box">
+      <div class="oppia-rule-details-header e2e-test-open-concept-card" (click)="openConceptCardExplanationEditor()">
+        <strong>Review Material</strong>
+        <div class="oppia-input-box-subtitle">
+          <i>
+            This gives the learner a brief overview of how to perform the skill.
+          </i>
+          <i class="fa fa-pen"></i>
+        </div>
+      </div>
+
+      <div *ngIf="conceptCardExplanationEditorIsShown">
+        <schema-based-editor [schema]="getHtmlSchema()" class="e2e-test-concept-card-text"
+                             [localValue]="bindableDict.displayedConceptCardExplanation"
+                             (localValueChange)="updateExplanation($event)">
+        </schema-based-editor>
+        <div *ngIf="checkExtraWorkedexample()" class="oppia-length-validation-error e2e-test-more-than-2-workedexamples" aria-live="assertive">
+          <p>Skills can have a maximum of {{ skillEditorWorkedExampleLimit }} worked examples. Please remove any additional ones.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-secondary" (click)="cancel()" type="button">Cancel</button>
+    <button class="btn btn-success e2e-test-confirm-skill-creation-button"
+            type="submit"
+            [disabled]="bindableDict.displayedConceptCardExplanation.length === 0 || newSkillDescription.length === 0 || errorMsg !== '' || workedExampleLimitExceeded">
+            Save
+    </button>
+  </div>
+</form>

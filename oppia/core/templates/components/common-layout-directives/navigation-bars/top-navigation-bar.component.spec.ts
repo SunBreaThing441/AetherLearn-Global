@@ -1,0 +1,1049 @@
+// Copyright 2021 The Oppia Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS-IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/**
+ * @fileoverview Unit tests for TopNavigationBarComponent.
+ */
+
+// @ts-nocheck
+
+import {HttpClientTestingModule} from '@angular/common/http/testing';
+import {EventEmitter, NO_ERRORS_SCHEMA} from '@angular/core';
+import {
+  ComponentFixture,
+  fakeAsync,
+  TestBed,
+  tick,
+  waitForAsync,
+} from '@angular/core/testing';
+import {By} from '@angular/platform-browser';
+import {NgbModule} from '@ng-bootstrap/ng-bootstrap';
+import {DeviceInfoService} from 'services/contextual/device-info.service';
+import {WindowDimensionsService} from 'services/contextual/window-dimensions.service';
+import {WindowRef} from 'services/contextual/window-ref.service';
+import {EventToCodes, NavigationService} from 'services/navigation.service';
+import {SiteAnalyticsService} from 'services/site-analytics.service';
+import {UserService} from 'services/user.service';
+import {SignInEventService} from 'services/sign-in-event.service';
+import {MockI18nService, MockTranslatePipe} from 'tests/unit-test-utils';
+import {TopNavigationBarComponent} from './top-navigation-bar.component';
+import {SidebarStatusService} from 'services/sidebar-status.service';
+import {UserInfo} from 'domain/user/user-info.model';
+import {I18nLanguageCodeService} from 'services/i18n-language-code.service';
+import {I18nService} from 'i18n/i18n.service';
+import {CookieService, CookieModule} from 'ngx-cookie';
+import {PlatformFeatureService} from 'services/platform-feature.service';
+import {LearnerGroupBackendApiService} from 'domain/learner_group/learner-group-backend-api.service';
+import {AppConstants} from 'app.constants';
+import {NavbarAndFooterGATrackingPages} from 'app.constants';
+import {UrlInterpolationService} from 'domain/utilities/url-interpolation.service';
+import {UrlService} from 'services/contextual/url.service';
+import {ContentTranslationManagerService} from 'pages/exploration-player-page/services/content-translation-manager.service';
+import {NgbModal} from '@ng-bootstrap/ng-bootstrap';
+import {FeedbackModalComponent} from '../../../base-components/feedback-modal.component';
+
+class MockPlatformFeatureService {
+  status = {
+    WebFeedbackModalEnabled: {
+      isEnabled: false,
+    },
+    TechnicalFeedbackDashboardEnabled: {
+      isEnabled: false,
+    },
+    EnableCertificateAssessment: {
+      isEnabled: false,
+    },
+  };
+}
+
+class MockNgbModal {
+  open = jasmine.createSpy('open').and.returnValue({
+    componentInstance: {},
+    result: Promise.resolve(),
+  });
+}
+
+class MockWindowRef {
+  nativeWindow = {
+    location: {
+      pathname: '/learn/math',
+      href: '',
+      reload: () => {},
+      toString: () => {
+        return 'http://localhost:8181/?lang=es';
+      },
+    },
+    localStorage: {
+      last_uploaded_audio_lang: 'en',
+      removeItem: (name: string) => {},
+    },
+    sessionStorage: {
+      last_uploaded_audio_lang: 'en',
+      removeItem: (name: string) => {},
+    },
+    gtag: () => {},
+    history: {
+      pushState(data: object, title: string, url?: string | null) {},
+    },
+    document: {
+      body: {
+        style: {
+          overflowY: 'auto',
+        },
+      },
+    },
+  };
+}
+
+class MockSignInEventService {
+  onUserSignIn = new EventEmitter<void>();
+}
+
+describe('TopNavigationBarComponent', () => {
+  let fixture: ComponentFixture<TopNavigationBarComponent>;
+  let component: TopNavigationBarComponent;
+  let mockWindowRef: MockWindowRef;
+  let wds: WindowDimensionsService;
+  let ngbModal: NgbModal;
+  let userService: UserService;
+  let siteAnalyticsService: SiteAnalyticsService;
+  let navigationService: NavigationService;
+  let deviceInfoService: DeviceInfoService;
+  let sidebarStatusService: SidebarStatusService;
+  let contentTranslationManagerService: ContentTranslationManagerService;
+  let learnerGroupBackendApiService: LearnerGroupBackendApiService;
+  let i18nLanguageCodeService: I18nLanguageCodeService;
+  let i18nService: I18nService;
+  let mockPlatformFeatureService = new MockPlatformFeatureService();
+  let urlInterpolationService: UrlInterpolationService;
+  let urlService: UrlService;
+  let mockResizeEmitter: EventEmitter<void>;
+
+  beforeEach(waitForAsync(() => {
+    mockResizeEmitter = new EventEmitter();
+    mockWindowRef = new MockWindowRef();
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule, NgbModule, CookieModule.forRoot()],
+      declarations: [TopNavigationBarComponent, MockTranslatePipe],
+      providers: [
+        NavigationService,
+        CookieService,
+        UserService,
+        {
+          provide: I18nService,
+          useClass: MockI18nService,
+        },
+        {
+          provide: NgbModal,
+          useClass: MockNgbModal,
+        },
+        {
+          provide: WindowRef,
+          useValue: mockWindowRef,
+        },
+        {
+          provide: WindowDimensionsService,
+          useValue: {
+            getWidth: () => 700,
+            getResizeEvent: () => mockResizeEmitter,
+            isWindowNarrow: () => false,
+          },
+        },
+        {
+          provide: PlatformFeatureService,
+          useValue: mockPlatformFeatureService,
+        },
+        {
+          provide: SignInEventService,
+          useClass: MockSignInEventService,
+        },
+      ],
+      schemas: [NO_ERRORS_SCHEMA],
+    }).compileComponents();
+  }));
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(TopNavigationBarComponent);
+    component = fixture.componentInstance;
+    wds = TestBed.inject(WindowDimensionsService);
+    ngbModal = TestBed.inject(NgbModal);
+    userService = TestBed.inject(UserService);
+    siteAnalyticsService = TestBed.inject(SiteAnalyticsService);
+    navigationService = TestBed.inject(NavigationService);
+    deviceInfoService = TestBed.inject(DeviceInfoService);
+    sidebarStatusService = TestBed.inject(SidebarStatusService);
+    i18nService = TestBed.inject(I18nService);
+    urlService = TestBed.inject(UrlService);
+    contentTranslationManagerService = TestBed.inject(
+      ContentTranslationManagerService
+    );
+    learnerGroupBackendApiService = TestBed.inject(
+      LearnerGroupBackendApiService
+    );
+    i18nLanguageCodeService = TestBed.inject(I18nLanguageCodeService);
+    urlInterpolationService = TestBed.inject(UrlInterpolationService);
+
+    spyOn(userService, 'getProfileImageDataUrl').and.returnValue([
+      'default-image-url-png',
+      'default-image-url-webp',
+    ]);
+  });
+
+  afterEach(() => {
+    component.ngOnDestroy();
+  });
+
+  it('should truncate navbar after search bar is loaded', fakeAsync(() => {
+    spyOn(component, 'truncateNavbar').and.stub();
+
+    component.ngOnInit();
+    tick(10);
+
+    tick(101);
+
+    fixture.whenStable().then(() => {
+      expect(component.truncateNavbar).toHaveBeenCalled();
+    });
+  }));
+
+  it('should unsubscribe upon component destruction', () => {
+    spyOn(component.directiveSubscriptions, 'unsubscribe');
+
+    component.ngOnDestroy();
+
+    expect(component.directiveSubscriptions.unsubscribe).toHaveBeenCalled();
+  });
+
+  it(
+    'should try displaying the hidden navbar elements if resized' +
+      ' window is larger',
+    fakeAsync(() => {
+      let donateElement = 'I18N_TOPNAV_DONATE';
+      spyOn(component, 'truncateNavbar').and.stub();
+
+      component.ngOnInit();
+      tick(10);
+
+      component.currentWindowWidth = 600;
+      component.navElementsVisibilityStatus[donateElement] = false;
+
+      mockResizeEmitter.emit();
+      tick(501);
+
+      fixture.whenStable().then(() => {
+        expect(component.navElementsVisibilityStatus[donateElement]).toBe(true);
+      });
+    })
+  );
+
+  it("should show Oppia's logos", () => {
+    expect(component.getStaticImageUrl('/logo/288x128_logo_white.webp')).toBe(
+      '/assets/images/logo/288x128_logo_white.webp'
+    );
+
+    expect(component.getStaticImageUrl('/logo/288x128_logo_white.png')).toBe(
+      '/assets/images/logo/288x128_logo_white.png'
+    );
+  });
+
+  it(
+    'should fetch login URL and redirect user to login page when user' +
+      " clicks on 'Sign In'",
+    fakeAsync(() => {
+      spyOn(userService, 'getLoginUrlAsync').and.resolveTo('/login/url');
+
+      expect(mockWindowRef.nativeWindow.location.href).toBe('');
+
+      component.onLoginButtonClicked();
+      tick(151);
+
+      fixture.whenStable().then(() => {
+        expect(mockWindowRef.nativeWindow.location.href).toBe('/login/url');
+      });
+    })
+  );
+
+  it('should reload window if fetched login URL is null', fakeAsync(() => {
+    spyOn(userService, 'getLoginUrlAsync').and.resolveTo('');
+    spyOn(mockWindowRef.nativeWindow.location, 'reload');
+
+    expect(mockWindowRef.nativeWindow.location.href).toBe('');
+
+    component.onLoginButtonClicked();
+    tick(151);
+
+    fixture.whenStable().then(() => {
+      expect(mockWindowRef.nativeWindow.location.reload).toHaveBeenCalled();
+    });
+  }));
+
+  it(
+    'should register start login event when user is being redirected to' +
+      ' the login page',
+    fakeAsync(() => {
+      spyOn(userService, 'getLoginUrlAsync').and.resolveTo('/login/url');
+      spyOn(siteAnalyticsService, 'registerStartLoginEvent');
+
+      component.onLoginButtonClicked();
+      tick(151);
+
+      fixture.whenStable().then(() => {
+        expect(
+          siteAnalyticsService.registerStartLoginEvent
+        ).toHaveBeenCalledWith('loginButton');
+      });
+    })
+  );
+
+  it('should clear last uploaded audio language on logout', () => {
+    spyOn(mockWindowRef.nativeWindow.localStorage, 'removeItem');
+
+    expect(
+      mockWindowRef.nativeWindow.localStorage.last_uploaded_audio_lang
+    ).toBe('en');
+
+    component.onLogoutButtonClicked();
+
+    expect(
+      mockWindowRef.nativeWindow.localStorage.removeItem
+    ).toHaveBeenCalledWith('last_uploaded_audio_lang');
+  });
+
+  it('should open submenu when user hovers over the menu button', () => {
+    let mouseoverEvent = new KeyboardEvent('mouseover');
+    spyOn(navigationService, 'openSubmenu');
+    spyOn(deviceInfoService, 'isMobileDevice').and.returnValue(false);
+
+    component.openSubmenu(mouseoverEvent, 'learnMenu');
+
+    expect(navigationService.openSubmenu).toHaveBeenCalledWith(
+      mouseoverEvent,
+      'learnMenu'
+    );
+  });
+
+  it(
+    'should close submenu when user moves the mouse away' +
+      ' from the menu button',
+    () => {
+      let mouseleaveEvent = new KeyboardEvent('mouseleave');
+      spyOn(navigationService, 'closeSubmenu');
+      spyOn(deviceInfoService, 'isMobileDevice').and.returnValue(false);
+
+      component.closeSubmenuIfNotMobile(mouseleaveEvent);
+
+      expect(navigationService.closeSubmenu).toHaveBeenCalledWith(
+        mouseleaveEvent
+      );
+    }
+  );
+
+  it('should not close the submenu is the user is on a mobile device', () => {
+    spyOn(deviceInfoService, 'isMobileDevice').and.returnValue(true);
+    spyOn(navigationService, 'closeSubmenu');
+
+    component.closeSubmenuIfNotMobile(new KeyboardEvent('mouseleave'));
+
+    expect(navigationService.closeSubmenu).not.toHaveBeenCalled();
+  });
+
+  it('should handle keydown events on menus', () => {
+    let keydownEvent = new KeyboardEvent('click', {
+      shiftKey: true,
+      keyCode: 9,
+    });
+
+    expect(component.activeMenuName).toBe(undefined);
+
+    component.onMenuKeypress(keydownEvent, 'aboutMenu', {
+      shiftTab: 'open',
+    } as EventToCodes);
+
+    expect(component.activeMenuName).toBe('aboutMenu');
+  });
+
+  it('should toggle side bar', () => {
+    const clickEvent = new CustomEvent('click');
+    spyOn(sidebarStatusService, 'isSidebarShown').and.returnValues(
+      false,
+      true,
+      true,
+      false,
+      false
+    );
+    spyOn(wds, 'isWindowNarrow').and.returnValue(true);
+    spyOn(sidebarStatusService, 'toggleHamburgerIconStatus');
+    spyOn(clickEvent, 'stopPropagation');
+
+    expect(component.isSidebarShown()).toBe(false);
+    component.toggleSidebar(clickEvent);
+    expect(sidebarStatusService.toggleHamburgerIconStatus).toHaveBeenCalled();
+    expect(component.isSidebarShown()).toBe(true);
+    component.toggleSidebar(clickEvent);
+    expect(component.isSidebarShown()).toBe(false);
+  });
+
+  it('should register About header click event', () => {
+    spyOn(siteAnalyticsService, 'registerClickNavbarButtonEvent');
+    expect(mockWindowRef.nativeWindow.location.href).toBe('');
+
+    component.navigateToAboutPage();
+
+    expect(
+      siteAnalyticsService.registerClickNavbarButtonEvent
+    ).toHaveBeenCalledWith(NavbarAndFooterGATrackingPages.ABOUT);
+
+    expect(mockWindowRef.nativeWindow.location.href).toBe('/about');
+  });
+
+  it('should register Volunteer header click event', () => {
+    spyOn(siteAnalyticsService, 'registerClickNavbarButtonEvent');
+    expect(mockWindowRef.nativeWindow.location.href).toBe('');
+
+    component.navigateToVolunteerPage();
+
+    expect(
+      siteAnalyticsService.registerClickNavbarButtonEvent
+    ).toHaveBeenCalledWith(NavbarAndFooterGATrackingPages.VOLUNTEER);
+
+    expect(mockWindowRef.nativeWindow.location.href).toBe('/volunteer');
+  });
+
+  it('should register Teach header click event', () => {
+    spyOn(siteAnalyticsService, 'registerClickNavbarButtonEvent');
+    expect(mockWindowRef.nativeWindow.location.href).toBe('');
+
+    component.navigateToTeachPage();
+
+    expect(
+      siteAnalyticsService.registerClickNavbarButtonEvent
+    ).toHaveBeenCalledWith(NavbarAndFooterGATrackingPages.TEACH);
+
+    expect(mockWindowRef.nativeWindow.location.href).toBe('/teach');
+  });
+
+  it('should register Blog header click event', () => {
+    spyOn(siteAnalyticsService, 'registerClickNavbarButtonEvent');
+    expect(mockWindowRef.nativeWindow.location.href).toBe('');
+
+    component.navigateToBlogPage();
+
+    expect(
+      siteAnalyticsService.registerClickNavbarButtonEvent
+    ).toHaveBeenCalledWith(NavbarAndFooterGATrackingPages.BLOG);
+
+    expect(mockWindowRef.nativeWindow.location.href).toBe('/blog');
+  });
+
+  it('should check if i18n has been run', () => {
+    spyOn(document, 'querySelectorAll')
+      .withArgs('.oppia-navbar-tab-content')
+      .and.returnValues(
+        [{innerText: ''}] as unknown as NodeListOf<Element>,
+        [{innerText: 'About'}] as unknown as NodeListOf<Element>
+      );
+
+    expect(component.checkIfI18NCompleted()).toBe(false);
+    expect(component.checkIfI18NCompleted()).toBe(true);
+  });
+
+  it('should not truncate navbar if the window is narrow', () => {
+    // The truncateNavbar() function returns, as soon as the check for
+    // narrow window passes.
+    spyOn(wds, 'isWindowNarrow').and.returnValue(true);
+    spyOn(component, 'checkIfI18NCompleted');
+    spyOn(document, 'querySelector');
+
+    // We also, check if the subsequent function calls have been made or not,
+    // thus confirming that the returned 'undefined' value is because of
+    // narrow window.
+    expect(component.truncateNavbar()).toBe(undefined);
+    expect(component.checkIfI18NCompleted).not.toHaveBeenCalled();
+    expect(document.querySelector).not.toHaveBeenCalled();
+  });
+
+  it('should show logo and language dropdown when component is embedded', () => {
+    expect(component.getStaticImageUrl('/logo/288x128_logo_white.webp')).toBe(
+      '/assets/images/logo/288x128_logo_white.webp'
+    );
+    expect(component.getStaticImageUrl('/logo/288x128_logo_white.png')).toBe(
+      '/assets/images/logo/288x128_logo_white.png'
+    );
+
+    component.pageIsIframed = true;
+
+    fixture.detectChanges();
+
+    const languageChangeElement = fixture.debugElement.query(
+      By.css('.oppia-language-dropdown-button')
+    );
+    expect(languageChangeElement).toBeTruthy();
+  });
+
+  it(
+    'should retry calling truncate navbar if i18n is not' + ' complete',
+    fakeAsync(() => {
+      spyOn(wds, 'isWindowNarrow').and.returnValues(false, true);
+      spyOn(document, 'querySelector').and.stub();
+      spyOn(component, 'checkIfI18NCompleted').and.returnValue(false);
+
+      component.truncateNavbar();
+      tick(101);
+
+      fixture.whenStable().then(() => {
+        expect(document.querySelector).not.toHaveBeenCalled();
+      });
+    })
+  );
+
+  it("should hide navbar if it's height more than 60px", fakeAsync(() => {
+    spyOn(wds, 'isWindowNarrow').and.returnValues(false, true);
+    const mockElement = document.createElement('div');
+    Object.defineProperty(mockElement, 'clientHeight', {value: 61});
+    spyOn(document, 'querySelector')
+      .withArgs('div.collapse.navbar-collapse')
+      .and.returnValue(mockElement);
+
+    component.navElementsVisibilityStatus = {
+      I18N_TOPNAV_DONATE: true,
+      I18N_TOPNAV_LEARN: true,
+      I18N_TOPNAV_ABOUT: true,
+      I18N_TOPNAV_LIBRARY: true,
+      I18N_TOPNAV_HOME: true,
+    };
+
+    component.truncateNavbar();
+    tick(51);
+
+    fixture.whenStable().then(() => {
+      expect(component.navElementsVisibilityStatus).toEqual({
+        I18N_TOPNAV_DONATE: false,
+        I18N_TOPNAV_LEARN: true,
+        I18N_TOPNAV_ABOUT: true,
+        I18N_TOPNAV_LIBRARY: true,
+        I18N_TOPNAV_HOME: true,
+      });
+    });
+  }));
+
+  it('should emit language change event when URL contains lesson', () => {
+    const langCode = 'hi';
+    spyOn(urlService, 'getPathname').and.returnValue('/lesson/1');
+    spyOn(contentTranslationManagerService.onLanguageChange, 'emit');
+
+    component.changeLanguage(langCode);
+
+    expect(
+      contentTranslationManagerService.onLanguageChange.emit
+    ).toHaveBeenCalledWith(langCode);
+  });
+
+  it('should call handleLanguageUpdate when URL does not contain lesson', () => {
+    const langCode = 'hi';
+    spyOn(urlService, 'getPathname').and.returnValue('/explore/1');
+    spyOn(i18nService, 'handleLanguageUpdate');
+
+    component.changeLanguage(langCode);
+
+    expect(i18nService.handleLanguageUpdate).toHaveBeenCalledWith(langCode);
+  });
+
+  it('should check if learner groups feature is enabled', fakeAsync(() => {
+    spyOn(component, 'truncateNavbar').and.stub();
+    spyOn(
+      learnerGroupBackendApiService,
+      'isLearnerGroupFeatureEnabledAsync'
+    ).and.resolveTo(true);
+
+    component.ngOnInit();
+    tick();
+
+    expect(component.LEARNER_GROUPS_FEATURE_IS_ENABLED).toBe(true);
+  }));
+
+  it(
+    'should change current language code on' + ' I18nLanguageCode change',
+    fakeAsync(() => {
+      let onI18nLanguageCodeChangeEmitter = new EventEmitter();
+      spyOnProperty(
+        i18nLanguageCodeService,
+        'onI18nLanguageCodeChange'
+      ).and.returnValue(onI18nLanguageCodeChangeEmitter);
+      spyOn(component, 'truncateNavbar').and.stub();
+
+      component.ngOnInit();
+
+      component.currentLanguageCode = 'hi';
+
+      onI18nLanguageCodeChangeEmitter.emit('en');
+      tick();
+
+      expect(component.currentLanguageCode).toBe('en');
+    })
+  );
+
+  it('should get user information on initialization', fakeAsync(() => {
+    let userInfo = new UserInfo(
+      ['USER_ROLE'],
+      true,
+      false,
+      false,
+      false,
+      true,
+      'en',
+      'username1',
+      'tester@example.com',
+      true
+    );
+    spyOn(component, 'truncateNavbar').and.stub();
+    spyOn(userService, 'getUserInfoAsync').and.resolveTo(userInfo);
+    spyOn(
+      i18nLanguageCodeService,
+      'getCurrentI18nLanguageCode'
+    ).and.returnValue('en');
+
+    expect(component.isModerator).toBe(false);
+    expect(component.isCurriculumAdmin).toBe(false);
+    expect(component.isTopicManager).toBe(false);
+    expect(component.isQuestionAdmin).toBe(false);
+    expect(component.isSuperAdmin).toBe(false);
+    expect(component.userIsLoggedIn).toBe(false);
+    expect(component.username).toBe(undefined);
+    expect(component.profilePageUrl).toBe(undefined);
+
+    component.ngOnInit();
+    tick();
+
+    expect(component.isModerator).toBe(true);
+    expect(component.isCurriculumAdmin).toBe(false);
+    expect(component.isTopicManager).toBe(false);
+    expect(component.isQuestionAdmin).toBe(false);
+    expect(component.isSuperAdmin).toBe(false);
+    expect(component.userIsLoggedIn).toBe(true);
+    expect(component.username).toBe('username1');
+    expect(component.profilePageUrl).toBe('/profile/username1');
+    expect(component.profilePicturePngDataUrl).toEqual('default-image-url-png');
+    expect(component.profilePictureWebpDataUrl).toEqual(
+      'default-image-url-webp'
+    );
+  }));
+
+  it('should set isQuestionAdmin to true when user is a question admin', fakeAsync(() => {
+    let userInfo = new UserInfo(
+      ['USER_ROLE', 'QUESTION_ADMIN'],
+      true,
+      false,
+      false,
+      false,
+      true,
+      'en',
+      'username1',
+      'tester@example.com',
+      true
+    );
+    spyOn(component, 'truncateNavbar').and.stub();
+    spyOn(userService, 'getUserInfoAsync').and.resolveTo(userInfo);
+
+    expect(component.isModerator).toBe(false);
+    expect(component.isCurriculumAdmin).toBe(false);
+    expect(component.isQuestionAdmin).toBe(false);
+    expect(component.isTopicManager).toBe(false);
+    expect(component.isSuperAdmin).toBe(false);
+    expect(component.userIsLoggedIn).toBe(false);
+
+    component.ngOnInit();
+    tick();
+
+    expect(component.isModerator).toBe(true);
+    expect(component.isCurriculumAdmin).toBe(false);
+    expect(component.isQuestionAdmin).toBe(true);
+    expect(component.isTopicManager).toBe(false);
+    expect(component.isSuperAdmin).toBe(false);
+    expect(component.userIsLoggedIn).toBe(true);
+  }));
+
+  it('should set default profile pictures when username is null', fakeAsync(() => {
+    spyOn(component, 'truncateNavbar').and.stub();
+    let userInfo = {
+      isModerator: () => false,
+      isCurriculumAdmin: () => false,
+      isTopicManager: () => false,
+      isQuestionAdmin: () => false,
+      isSuperAdmin: () => false,
+      isBlogAdmin: () => false,
+      isBlogPostEditor: () => false,
+      isTechTeamLead: () => false,
+      isTranslationAdmin: () => false,
+      isTranslationCoordinator: () => false,
+      isQuestionCoordinator: () => false,
+      isReleaseCoordinator: () => false,
+      isLoggedIn: () => true,
+      getUsername: () => null,
+    };
+
+    spyOn(userService, 'getUserInfoAsync').and.resolveTo(userInfo as UserInfo);
+
+    component.ngOnInit();
+    tick();
+
+    expect(component.profilePicturePngDataUrl).toBe(
+      urlInterpolationService.getStaticImageUrl(
+        AppConstants.DEFAULT_PROFILE_IMAGE_PNG_PATH
+      )
+    );
+    expect(component.profilePictureWebpDataUrl).toBe(
+      urlInterpolationService.getStaticImageUrl(
+        AppConstants.DEFAULT_PROFILE_IMAGE_WEBP_PATH
+      )
+    );
+  }));
+
+  it('should return proper offset for dropdown', () => {
+    var dummyLearnTab = document.createElement('div');
+    var dummyDropdown = document.createElement('div');
+
+    spyOn(document, 'querySelector').and.callFake((selector: string) => {
+      if (selector === '.dummy') {
+        return dummyLearnTab;
+      } else if (selector === '.dropdown') {
+        return dummyDropdown;
+      }
+      return null;
+    });
+
+    spyOn(dummyLearnTab, 'getBoundingClientRect').and.returnValue({
+      top: 1,
+      height: 100,
+      left: 0,
+      width: 200,
+      right: 202,
+    });
+
+    spyOn(window, 'getComputedStyle').and.callFake((el: HTMLElement) => {
+      return {
+        minWidth: '150px',
+      } as CSSStyleDeclaration;
+    });
+    expect(component.getDropdownOffset('.dummy', '.dropdown')).toBe(0);
+  });
+
+  it('should return proper offset for learn dropdown when element is undefined', () => {
+    spyOn(document, 'querySelector').and.callFake((selector: string) => {
+      return null;
+    });
+    expect(component.getDropdownOffset('.dummy', '.dropdown')).toBe(0);
+  });
+
+  it('should check if dropdown offsets are updated', fakeAsync(() => {
+    spyOn(component, 'truncateNavbar').and.stub();
+    spyOn(component, 'getDropdownOffset')
+      .withArgs('.learn-tab', '.classroom-enabled')
+      .and.returnValue(-10)
+      .withArgs('.get-involved', '.get-involved-dropdown')
+      .and.returnValue(-10);
+
+    expect(component.learnDropdownOffset).toBe(0);
+    expect(component.getInvolvedMenuOffset).toBe(0);
+
+    component.updateLearnDropdownOffset();
+    component.updateGetInvolvedMenuOffset();
+    tick();
+
+    expect(component.learnDropdownOffset).toBe(-10);
+    expect(component.getInvolvedMenuOffset).toBe(-10);
+  }));
+
+  it('should recompute the learn dropdown offset when the learn menu is opened', () => {
+    spyOn(component, 'updateLearnDropdownOffset').and.stub();
+    spyOn(component, 'updateGetInvolvedMenuOffset').and.stub();
+
+    component.openSubmenu(new Event('mouseover'), 'learnMenu');
+
+    expect(component.updateLearnDropdownOffset).toHaveBeenCalled();
+    expect(component.updateGetInvolvedMenuOffset).not.toHaveBeenCalled();
+  });
+
+  it('should recompute the get involved dropdown offset when the menu is opened', () => {
+    spyOn(component, 'updateLearnDropdownOffset').and.stub();
+    spyOn(component, 'updateGetInvolvedMenuOffset').and.stub();
+
+    component.openSubmenu(new Event('mouseover'), 'getInvolvedMenu');
+
+    expect(component.updateLearnDropdownOffset).not.toHaveBeenCalled();
+    expect(component.updateGetInvolvedMenuOffset).toHaveBeenCalled();
+  });
+
+  it('should not recompute dropdown offsets when other menus are opened', () => {
+    spyOn(component, 'updateLearnDropdownOffset').and.stub();
+    spyOn(component, 'updateGetInvolvedMenuOffset').and.stub();
+
+    component.openSubmenu(new Event('mouseover'), 'aboutMenu');
+
+    expect(component.updateLearnDropdownOffset).not.toHaveBeenCalled();
+    expect(component.updateGetInvolvedMenuOffset).not.toHaveBeenCalled();
+  });
+
+  it('should recompute the dropdown offsets when the window is resized', () => {
+    spyOn(component, 'updateLearnDropdownOffset').and.stub();
+    spyOn(component, 'updateGetInvolvedMenuOffset').and.stub();
+    spyOn(component, 'truncateNavbar').and.stub();
+
+    component.ngOnInit();
+    mockResizeEmitter.emit();
+
+    expect(component.updateLearnDropdownOffset).toHaveBeenCalled();
+    expect(component.updateGetInvolvedMenuOffset).toHaveBeenCalled();
+  });
+
+  it('should store the classroom count and recompute the learn dropdown offset when it is emitted', () => {
+    spyOn(component, 'getDropdownOffset').and.returnValue(-10);
+
+    expect(component.classroomSummariesLength).toBe(0);
+
+    component.onClassroomCountChange(3);
+
+    expect(component.classroomSummariesLength).toBe(3);
+    expect(component.getDropdownOffset).toHaveBeenCalledWith(
+      '.learn-tab',
+      '.classroom-enabled'
+    );
+    expect(component.learnDropdownOffset).toBe(-10);
+  });
+
+  it('should reset the classroom count but not recompute the offset when it is re-emitted', () => {
+    spyOn(component, 'getDropdownOffset').and.returnValue(0);
+    component.classroomSummariesLength = 5;
+    component.learnDropdownOffset = -10;
+
+    component.onClassroomCountChange(2);
+
+    expect(component.classroomSummariesLength).toBe(2);
+    expect(component.learnDropdownOffset).toBe(0);
+  });
+
+  it('should handle non-numeric minWidth gracefully', () => {
+    const dummyLearnTab = document.createElement('div');
+    const dummyDropdown = document.createElement('div');
+
+    spyOn(document, 'querySelector').and.callFake((selector: string) => {
+      return selector === '.dummy' ? dummyLearnTab : dummyDropdown;
+    });
+
+    spyOn(dummyLearnTab, 'getBoundingClientRect').and.returnValue({
+      top: 1,
+      height: 100,
+      left: 0,
+      width: 200,
+      right: 202,
+    });
+
+    spyOn(window, 'getComputedStyle').and.returnValue({
+      minWidth: 'invalid-px',
+    } as CSSStyleDeclaration);
+
+    const offset = component.getDropdownOffset('.dummy', '.dropdown');
+    expect(offset).toBe(0);
+  });
+
+  it('should handle null bounding rect gracefully', () => {
+    const dummyLearnTab = document.createElement('div');
+    spyOn(document, 'querySelector').and.returnValue(dummyLearnTab);
+    spyOn(dummyLearnTab, 'getBoundingClientRect').and.returnValue(null);
+
+    const offset = component.getDropdownOffset('.dummy', '.dropdown');
+    expect(offset).toBe(0);
+  });
+
+  it('should check whether hacky translations are displayed or not', () => {
+    spyOn(
+      i18nLanguageCodeService,
+      'isHackyTranslationAvailable'
+    ).and.returnValues(false, true);
+    spyOn(i18nLanguageCodeService, 'isCurrentLanguageEnglish').and.returnValues(
+      false,
+      false
+    );
+
+    let hackyStoryTitleTranslationIsDisplayed =
+      component.isHackyTopicTitleTranslationDisplayed(0);
+    expect(hackyStoryTitleTranslationIsDisplayed).toBe(false);
+    hackyStoryTitleTranslationIsDisplayed =
+      component.isHackyTopicTitleTranslationDisplayed(0);
+    expect(hackyStoryTitleTranslationIsDisplayed).toBe(true);
+  });
+
+  it(
+    'should return correct value for show technical feedback dashboard page' +
+      'in profile pic drop down menu feature flag',
+    () => {
+      expect(component.isTechnicalFeedbackDashboardEnabled()).toBe(false);
+
+      mockPlatformFeatureService.status.TechnicalFeedbackDashboardEnabled.isEnabled =
+        true;
+
+      expect(component.isTechnicalFeedbackDashboardEnabled()).toBe(true);
+    }
+  );
+
+  it(
+    'should return correct value for WebFeedbackModalEnabled' +
+      'in profile pic drop down menu feature flag',
+    () => {
+      expect(component.isWebFeedbackModalFeatureFlagEnabled()).toBe(false);
+
+      mockPlatformFeatureService.status.WebFeedbackModalEnabled.isEnabled =
+        true;
+
+      expect(component.isWebFeedbackModalFeatureFlagEnabled()).toBe(true);
+    }
+  );
+
+  it('should return correct value for certificate assessment feature flag', () => {
+    expect(component.isCertificateAssessmentEnabled()).toBe(false);
+
+    mockPlatformFeatureService.status.EnableCertificateAssessment.isEnabled =
+      true;
+
+    expect(component.isCertificateAssessmentEnabled()).toBe(true);
+  });
+
+  it('should open site feedback modal', () => {
+    component.openSiteFeedbackModal();
+    expect(ngbModal.open).toHaveBeenCalledWith(FeedbackModalComponent, {
+      backdrop: 'static',
+    });
+  });
+
+  it('should not check learner groups feature on signup page', fakeAsync(() => {
+    spyOn(component, 'truncateNavbar').and.stub();
+    const learnerGroupSpy = spyOn(
+      learnerGroupBackendApiService,
+      'isLearnerGroupFeatureEnabledAsync'
+    );
+
+    mockWindowRef.nativeWindow.location.pathname = '/signup';
+    component.ngOnInit();
+    tick();
+
+    expect(learnerGroupSpy).not.toHaveBeenCalled();
+    expect(component.LEARNER_GROUPS_FEATURE_IS_ENABLED).toBe(false);
+  }));
+
+  it('should hide menu icon when page contains a back button', () => {
+    spyOn(urlService, 'getPathname').and.returnValue('/blog/post123');
+    component.PAGES_WITH_BACK_STATE = ['/blog/'];
+    component.ngOnInit();
+    expect(component.menuIconIsShown).toBe(false);
+  });
+
+  it('should show menu icon when page does not contain a back button', () => {
+    spyOn(urlService, 'getPathname').and.returnValue('/classroom/math');
+    component.PAGES_WITH_BACK_STATE = ['/blog/', '/learner-dashboard/'];
+    component.ngOnInit();
+    expect(component.menuIconIsShown).toBe(true);
+  });
+
+  it('should not show Sign In button while auth status is not resolved', () => {
+    component.authStatusResolved = false;
+    component.userIsLoggedIn = false;
+    component.username = 'testuser';
+    component.pageIsIframed = false;
+    fixture.detectChanges();
+
+    const signInButton = fixture.debugElement.query(
+      By.css('.e2e-mobile-test-login')
+    );
+
+    expect(signInButton).toBeFalsy();
+  });
+
+  it('should show Sign In button after auth status is resolved for logged out user', () => {
+    component.authStatusResolved = true;
+    component.userIsLoggedIn = false;
+    component.username = 'testuser';
+    component.pageIsIframed = false;
+    component.userMenuIsShown = true;
+    fixture.detectChanges();
+
+    const signInButton = fixture.debugElement.query(
+      By.css('.e2e-mobile-test-login')
+    );
+
+    expect(signInButton).toBeTruthy();
+  });
+
+  it('should not show profile dropdown while auth status is not resolved', () => {
+    component.authStatusResolved = false;
+    component.userIsLoggedIn = true;
+    component.pageIsIframed = false;
+    fixture.detectChanges();
+
+    const profileDropdown = fixture.debugElement.query(
+      By.css('.e2e-test-profile-dropdown')
+    );
+
+    expect(profileDropdown).toBeFalsy();
+  });
+
+  it('should show profile dropdown after auth status is resolved for logged in user', () => {
+    component.authStatusResolved = true;
+    component.userIsLoggedIn = true;
+    component.pageIsIframed = false;
+    component.userMenuIsShown = true;
+    component.profilePicturePngDataUrl = 'test-image-url';
+    fixture.detectChanges();
+
+    const profileDropdown = fixture.debugElement.query(
+      By.css('.e2e-test-profile-dropdown')
+    );
+
+    expect(profileDropdown).toBeTruthy();
+  });
+
+  it('should set authStatusResolved to true after getUserInfoAsync resolves', fakeAsync(() => {
+    let userInfo = new UserInfo(
+      ['USER_ROLE'],
+      false,
+      false,
+      false,
+      false,
+      true,
+      'en',
+      'username1',
+      'tester@example.com',
+      true
+    );
+    spyOn(component, 'truncateNavbar').and.stub();
+    spyOn(userService, 'getUserInfoAsync').and.resolveTo(userInfo);
+
+    expect(component.authStatusResolved).toBe(false);
+
+    component.ngOnInit();
+    tick();
+
+    expect(component.authStatusResolved).toBe(true);
+  }));
+
+  it('should set authStatusResolved to true even if getUserInfoAsync fails', fakeAsync(() => {
+    spyOn(component, 'truncateNavbar').and.stub();
+    spyOn(userService, 'getUserInfoAsync').and.rejectWith('Auth error');
+
+    expect(component.authStatusResolved).toBe(false);
+
+    component.ngOnInit();
+    tick();
+
+    expect(component.authStatusResolved).toBe(true);
+  }));
+});

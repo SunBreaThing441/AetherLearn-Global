@@ -1,0 +1,59 @@
+<mat-card class="blog-dashboard-tile e2e-test-blog-dashboard-tile" *ngIf="activeView === 'gridView'">
+  <div class="blog-dashboard-tile-content">
+    <mat-card-content>
+      <div class="blog-dashboard-tile-header">
+        <mat-card-title class="blog-dashboard-tile-title e2e-test-blog-post-title" *ngIf="blogPostSummary.title === ''">
+          {{ 'I18N_BLOG_POST_UNTITLED_HEADING' | translate }}
+        </mat-card-title>
+        <mat-card-title class="blog-dashboard-tile-title e2e-test-blog-post-title" *ngIf="blogPostSummary.title !== ''">
+          {{ blogPostSummary.title }}
+        </mat-card-title>
+        <button mat-icon-button
+                class="drop-down-button e2e-test-blog-post-edit-box"
+                aria-label="More options"
+                [matMenuTriggerFor]="blogCardOptions">
+          <mat-icon class="align-text-bottom">more_vert</mat-icon>
+        </button>
+        <mat-menu #blogCardOptions="matMenu">
+          <button mat-menu-item
+                  (click)="editBlogPost()"
+                  class="e2e-test-edit-blog-post-button">
+            <span>Edit</span>
+          </button>
+          <button mat-menu-item
+                  *ngIf="blogPostIsPublished"
+                  (click)="unpublishBlogPost()"
+                  class="e2e-test-unpublish-blog-post-button">
+            <span>Unpublish</span>
+          </button>
+          <button mat-menu-item
+                  (click)="deleteBlogPost()"
+                  class="e2e-test-delete-blog-post-button">
+            <span>Delete</span>
+          </button>
+        </mat-menu>
+      </div>
+      <mat-card-subtitle class="blog-dashboard-tile-subtitle">
+        {{ lastUpdatedDateString }}
+      </mat-card-subtitle>
+      <oppia-rte-output-display [rteString]="this.summaryContent"
+                                class="blog-post-summary d-block">
+      </oppia-rte-output-display>
+    </mat-card-content>
+  </div>
+</mat-card>
+<div class="d-flex flex-row flex-grow-1 justify-content-between align-items-baseline" (click)="editBlogPost()" *ngIf="activeView === 'listView'">
+  <span class="blog-dashboard-tile-title e2e-test-blog-post-title px-0 py-0 col-sm-5" *ngIf="blogPostSummary.title !== ''">
+    {{ blogPostSummary.title }}
+  </span>
+  <span class="blog-dashboard-tile-title e2e-test-blog-post-title px-0 py-0 col-sm-5" *ngIf="blogPostSummary.title === ''">
+    {{ 'I18N_BLOG_POST_UNTITLED_HEADING' | translate }}
+  </span>
+  <oppia-rte-output-display [rteString]="this.summaryContent"
+                            class="blog-post-summary truncated-text col-sm-6">
+  </oppia-rte-output-display>
+  <span class="blog-dashboard-tile-subtitle d-contents col-sm-2 px-0 py-0">
+    {{ lastUpdatedDateString }}
+  </span>
+  <mat-divider [inset]="true" *ngIf="!isLastBlogPostInList"></mat-divider>
+</div>
